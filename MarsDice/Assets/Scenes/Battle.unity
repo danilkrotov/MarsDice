@@ -415,9 +415,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   minModules: 1
-  maxModules: 3
+  maxModules: 5
   moduleObjects:
   - {fileID: 8587407342049505586, guid: eda06df4865f27241a819567146476dc, type: 3}
+  - {fileID: 8587407342049505586, guid: eda06df4865f27241a819567146476dc, type: 3}
+  - {fileID: 906017148015409437, guid: fa140261ba6f7ca44801a91c7ddcecb7, type: 3}
+  - {fileID: 906017148015409437, guid: fa140261ba6f7ca44801a91c7ddcecb7, type: 3}
   - {fileID: 906017148015409437, guid: fa140261ba6f7ca44801a91c7ddcecb7, type: 3}
   maxHealth: 10
   isAI: 0

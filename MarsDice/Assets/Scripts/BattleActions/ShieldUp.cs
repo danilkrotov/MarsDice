@@ -34,6 +34,66 @@ public class ShieldUp : BattleActions
         return new Rect(Screen.width * 0.5f - w * 0.5f, Screen.height - 95f, w, h);
     }
 
+    private static List<MShield> CollectMShields(Unit unit)
+    {
+        var list = new List<MShield>(4);
+        IReadOnlyList<Modules> modules = unit.Modules;
+        for (int i = 0; i < modules.Count; i++)
+        {
+            if (modules[i] is MShield sh)
+            {
+                list.Add(sh);
+            }
+        }
+
+        return list;
+    }
+
+    private static void ReplenishShieldDiceOnUnit(Unit unit)
+    {
+        List<MShield> shields = CollectMShields(unit);
+        for (int si = 0; si < shields.Count; si++)
+        {
+            if (shields[si] != null)
+            {
+                shields[si].ReplenishConsumedDice();
+            }
+        }
+    }
+
+    private static List<Dice> CollectAllShieldDice(IReadOnlyList<MShield> shields)
+    {
+        var all = new List<Dice>(8);
+        for (int si = 0; si < shields.Count; si++)
+        {
+            MShield shieldModule = shields[si];
+            if (shieldModule == null)
+            {
+                continue;
+            }
+
+            IReadOnlyList<Dice> list = shieldModule.Dices;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] != null)
+                {
+                    all.Add(list[i]);
+                }
+            }
+        }
+
+        return all;
+    }
+
+    private static void RelayoutRemainingShieldDice(BattleController battleController, IReadOnlyList<MShield> shields)
+    {
+        List<Dice> remaining = CollectAllShieldDice(shields);
+        if (remaining.Count > 0)
+        {
+            battleController.LayoutDiceGroupCenteredOnScreen(remaining);
+        }
+    }
+
     public override IEnumerator Action(BattleController battleController, int unitIndex, Unit unit)
     {
         if (battleController == null || unit == null)
@@ -41,7 +101,10 @@ public class ShieldUp : BattleActions
             yield break;
         }
 
-        if (!UnitHasAnyShieldDice(unit))
+        ReplenishShieldDiceOnUnit(unit);
+
+        List<MShield> shields = CollectMShields(unit);
+        if (!UnitHasAnyShieldDice(shields))
         {
             yield break;
         }
@@ -51,51 +114,41 @@ public class ShieldUp : BattleActions
 
         try
         {
-            MShield[] shields = unit.GetComponentsInChildren<MShield>(true);
-            for (int si = 0; si < shields.Length; si++)
+            List<Dice> allDice = CollectAllShieldDice(shields);
+            if (allDice.Count == 0)
             {
-                MShield shieldModule = shields[si];
-                if (shieldModule == null)
-                {
-                    continue;
-                }
+                yield break;
+            }
 
-                if (GetNonNullDiceCount(shieldModule) == 0)
-                {
-                    continue;
-                }
+            battleController.LayoutDiceGroupCenteredOnScreen(allDice);
+            yield return RollAllDiceInParallel(allDice);
 
-                battleController.LayoutModuleDice(shieldModule);
-                yield return RollAllShieldDiceInModule(shieldModule);
-                battleController.LayoutModuleDice(shieldModule);
+            if (_skipPhaseRequested)
+            {
+                yield break;
+            }
 
-                if (_skipPhaseRequested)
-                {
-                    break;
-                }
-
+            while (!_skipPhaseRequested && HasAnyShieldDice(shields))
+            {
                 if (unit.IsAI)
                 {
-                    while (!_skipPhaseRequested && GetNonNullDiceCount(shieldModule) > 0)
+                    if (!TryGetFirstShieldDice(shields, out MShield shieldModule, out Dice autoDice) || autoDice == null)
                     {
-                        Dice autoDice = GetFirstNonNullDice(shieldModule);
-                        if (autoDice == null)
-                        {
-                            break;
-                        }
-
-                        ApplyShieldDiceChoice(shieldModule, autoDice, unit);
-                        battleController.LayoutModuleDice(shieldModule);
+                        break;
                     }
+
+                    ApplyShieldDiceChoice(shieldModule, autoDice, unit);
+                    RelayoutRemainingShieldDice(battleController, shields);
                 }
                 else
                 {
-                    yield return WaitForPlayerShieldChoice(unit, shieldModule, battleController);
-                }
+                    yield return WaitForPlayerAnyShieldDice(unit, battleController, shields);
+                    if (_skipPhaseRequested)
+                    {
+                        break;
+                    }
 
-                if (_skipPhaseRequested)
-                {
-                    break;
+                    RelayoutRemainingShieldDice(battleController, shields);
                 }
             }
         }
@@ -105,19 +158,21 @@ public class ShieldUp : BattleActions
         }
     }
 
-    private IEnumerator WaitForPlayerShieldChoice(Unit unit, MShield shieldModule, BattleController battleController)
+    private IEnumerator WaitForPlayerAnyShieldDice(Unit unit, BattleController battleController, IReadOnlyList<MShield> shields)
     {
-        while (!_skipPhaseRequested && GetNonNullDiceCount(shieldModule) > 0)
+        while (!_skipPhaseRequested && HasAnyShieldDice(shields))
         {
             if (Input.GetMouseButtonDown(0))
             {
                 Vector2 guiMouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
                 if (!GetSkipButtonScreenRect().Contains(guiMouse))
                 {
-                    if (TryGetClickedShieldDice(unit, shieldModule, out Dice picked) && !picked.IsRolling)
+                    if (TryGetClickedUnitShieldDice(unit, shields, out Dice picked, out MShield owner) &&
+                        picked != null &&
+                        !picked.IsRolling)
                     {
-                        ApplyShieldDiceChoice(shieldModule, picked, unit);
-                        battleController.LayoutModuleDice(shieldModule);
+                        ApplyShieldDiceChoice(owner, picked, unit);
+                        yield break;
                     }
                 }
             }
@@ -126,24 +181,115 @@ public class ShieldUp : BattleActions
         }
     }
 
-    private IEnumerator RollAllShieldDiceInModule(MShield shieldModule)
+    private IEnumerator RollAllDiceInParallel(List<Dice> diceList)
     {
-        IReadOnlyList<Dice> list = shieldModule.Dices;
-        for (int i = 0; i < list.Count; i++)
+        var batch = new ParallelRollBatch();
+        for (int i = 0; i < diceList.Count; i++)
+        {
+            Dice dice = diceList[i];
+            if (dice == null)
+            {
+                continue;
+            }
+
+            batch.Remaining++;
+            StartCoroutine(ParallelRollOne(dice, batch));
+        }
+
+        while (batch.Remaining > 0)
         {
             if (_skipPhaseRequested)
             {
                 yield break;
             }
 
-            Dice dice = list[i];
-            if (dice == null)
+            yield return null;
+        }
+    }
+
+    private IEnumerator ParallelRollOne(Dice dice, ParallelRollBatch batch)
+    {
+        yield return StartCoroutine(dice.RollDice());
+        batch.Remaining--;
+    }
+
+    private sealed class ParallelRollBatch
+    {
+        public int Remaining;
+    }
+
+    private static bool TryGetFirstShieldDice(IReadOnlyList<MShield> shields, out MShield module, out Dice dice)
+    {
+        for (int si = 0; si < shields.Count; si++)
+        {
+            MShield sh = shields[si];
+            if (sh == null)
             {
                 continue;
             }
 
-            yield return dice.RollDice();
+            dice = GetFirstNonNullDice(sh);
+            if (dice != null)
+            {
+                module = sh;
+                return true;
+            }
         }
+
+        module = null;
+        dice = null;
+        return false;
+    }
+
+    private static bool TryGetClickedUnitShieldDice(Unit unit, IReadOnlyList<MShield> shields, out Dice dice, out MShield ownerModule)
+    {
+        dice = null;
+        ownerModule = null;
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            return false;
+        }
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        RaycastHit[] hits = Physics.RaycastAll(ray, 120f);
+        float best = float.MaxValue;
+        Dice bestDice = null;
+        MShield bestShield = null;
+
+        for (int h = 0; h < hits.Length; h++)
+        {
+            Dice d = hits[h].collider.GetComponentInParent<Dice>();
+            if (d == null)
+            {
+                continue;
+            }
+
+            for (int si = 0; si < shields.Count; si++)
+            {
+                MShield sh = shields[si];
+                if (sh == null || !IsDiceOnUnitShieldModule(d, unit, sh))
+                {
+                    continue;
+                }
+
+                if (hits[h].distance < best)
+                {
+                    best = hits[h].distance;
+                    bestDice = d;
+                    bestShield = sh;
+                }
+            }
+        }
+
+        if (bestDice == null)
+        {
+            return false;
+        }
+
+        dice = bestDice;
+        ownerModule = bestShield;
+        return true;
     }
 
     private void ApplyShieldDiceChoice(MShield shieldModule, Dice dice, Unit unit)
@@ -170,48 +316,6 @@ public class ShieldUp : BattleActions
 
         shieldModule.RemoveDice(dice);
         Object.Destroy(dice.gameObject);
-    }
-
-    private static bool TryGetClickedShieldDice(Unit unit, MShield shieldModule, out Dice dice)
-    {
-        dice = null;
-        Camera cam = Camera.main;
-        if (cam == null)
-        {
-            return false;
-        }
-
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        RaycastHit[] hits = Physics.RaycastAll(ray, 120f);
-        float best = float.MaxValue;
-        Dice bestDice = null;
-        for (int i = 0; i < hits.Length; i++)
-        {
-            Dice d = hits[i].collider.GetComponentInParent<Dice>();
-            if (d == null)
-            {
-                continue;
-            }
-
-            if (!IsDiceOnUnitShieldModule(d, unit, shieldModule))
-            {
-                continue;
-            }
-
-            if (hits[i].distance < best)
-            {
-                best = hits[i].distance;
-                bestDice = d;
-            }
-        }
-
-        if (bestDice == null)
-        {
-            return false;
-        }
-
-        dice = bestDice;
-        return true;
     }
 
     private static bool IsDiceOnUnitShieldModule(Dice dice, Unit unit, MShield shieldModule)
@@ -249,10 +353,9 @@ public class ShieldUp : BattleActions
         return false;
     }
 
-    private static bool UnitHasAnyShieldDice(Unit unit)
+    private static bool UnitHasAnyShieldDice(IReadOnlyList<MShield> shields)
     {
-        MShield[] shields = unit.GetComponentsInChildren<MShield>(true);
-        for (int si = 0; si < shields.Length; si++)
+        for (int si = 0; si < shields.Count; si++)
         {
             if (shields[si] != null && GetNonNullDiceCount(shields[si]) > 0)
             {
@@ -261,6 +364,11 @@ public class ShieldUp : BattleActions
         }
 
         return false;
+    }
+
+    private static bool HasAnyShieldDice(IReadOnlyList<MShield> shields)
+    {
+        return UnitHasAnyShieldDice(shields);
     }
 
     private static int GetNonNullDiceCount(MShield shieldModule)

@@ -9,7 +9,7 @@ public class Unit : MonoBehaviour
     [SerializeField] private int minModules = 1;
     [Min(0)]
     [SerializeField] private int maxModules = 3;
-    [Tooltip("Объекты сцены; на каждом ищется компонент Modules (на себе или на дочерних).")]
+    [Tooltip("Префаб модуля из Project или объект из Hierarchy. В Awake префаб клонируется под этот Unit; объекты сцены только привязываются как дочерние.")]
     [SerializeField] private List<GameObject> moduleObjects = new List<GameObject>();
 
     [Header("HP")]
@@ -52,16 +52,27 @@ public class Unit : MonoBehaviour
             return;
         }
 
+        GameObject underUnit = EnsureModuleUnderUnit(go);
+        if (underUnit == null)
+        {
+            return;
+        }
+
+        if (ModuleObjectIndex(underUnit) >= 0)
+        {
+            return;
+        }
+
         for (int i = 0; i < moduleObjects.Count; i++)
         {
             if (moduleObjects[i] == null)
             {
-                moduleObjects[i] = go;
+                moduleObjects[i] = underUnit;
                 return;
             }
         }
 
-        moduleObjects.Add(go);
+        moduleObjects.Add(underUnit);
     }
 
     public bool RemoveModule(Modules module)
@@ -72,6 +83,69 @@ public class Unit : MonoBehaviour
         }
 
         return moduleObjects.Remove(module.gameObject);
+    }
+
+    private void Awake()
+    {
+        SetupAllModuleObjects();
+    }
+
+    /// <summary>Префабы клонирует под юнит; объекты сцены делает дочерними (мировые позиции сохраняются).</summary>
+    private void SetupAllModuleObjects()
+    {
+        if (moduleObjects == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < moduleObjects.Count; i++)
+        {
+            GameObject go = moduleObjects[i];
+            if (go == null)
+            {
+                continue;
+            }
+
+            GameObject underUnit = EnsureModuleUnderUnit(go);
+            if (underUnit != null && !ReferenceEquals(underUnit, go))
+            {
+                moduleObjects[i] = underUnit;
+            }
+        }
+    }
+
+    /// <returns>Корень модуля под юнитом (копия префаба или тот же GO после SetParent), либе null.</returns>
+    private GameObject EnsureModuleUnderUnit(GameObject go)
+    {
+        if (go == null || go == gameObject)
+        {
+            return null;
+        }
+
+        if (transform.IsChildOf(go.transform))
+        {
+            Debug.LogWarning($"{name}: модуль «{go.name}» выше юнита в иерархии — пропуск.");
+            return null;
+        }
+
+        if (IsPrefabSourceForSpawn(go))
+        {
+            return Instantiate(go, transform, false);
+        }
+
+        go.transform.SetParent(transform, true);
+        return go;
+    }
+
+    private static bool IsPrefabSourceForSpawn(GameObject go)
+    {
+#if UNITY_EDITOR
+        if (UnityEditor.PrefabUtility.IsPartOfPrefabAsset(go))
+        {
+            return true;
+        }
+#endif
+        return !go.scene.IsValid() || !go.scene.isLoaded;
     }
 
     private void Start()
@@ -209,18 +283,10 @@ public class Unit : MonoBehaviour
         IReadOnlyList<Modules> list = Modules;
         for (int m = 0; m < list.Count; m++)
         {
-            if (list[m] == null)
+            Modules mod = list[m];
+            if (mod != null && mod.HasConfiguredDiceForBattle())
             {
-                continue;
-            }
-
-            IReadOnlyList<Dice> dices = list[m].Dices;
-            for (int d = 0; d < dices.Count; d++)
-            {
-                if (dices[d] != null)
-                {
-                    return true;
-                }
+                return true;
             }
         }
 

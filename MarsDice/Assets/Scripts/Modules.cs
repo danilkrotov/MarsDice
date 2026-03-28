@@ -37,6 +37,10 @@ public abstract class Modules : MonoBehaviour
 
     [SerializeField] private List<GameObject> diceObjects = new List<GameObject>();
 
+    /// <summary>Источники для повторного Instantiate после Remove+Destroy (совпадает по индексу с diceObjects).</summary>
+    [System.NonSerialized]
+    private List<GameObject> dicePrefabTemplates;
+
     public ModuleType Type => type;
     public ModuleSize Size => size;
 
@@ -47,6 +51,61 @@ public abstract class Modules : MonoBehaviour
     public IReadOnlyList<Dice> Dices => new DiceResolvedList(diceObjects);
 
     public bool CanAddDice => GetAssignedDiceCount() < diceSlots;
+
+    protected virtual void Awake()
+    {
+        CacheDiceTemplatesAndClearRuntimeSlots();
+    }
+
+    /// <summary>Есть ли настроенные слоты кубиков (шаблон или уже заспавненный экземпляр) — для пропуска юнита в бою.</summary>
+    public bool HasConfiguredDiceForBattle()
+    {
+        if (GetAssignedDiceCount() > 0)
+        {
+            return true;
+        }
+
+        if (dicePrefabTemplates == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < dicePrefabTemplates.Count; i++)
+        {
+            if (dicePrefabTemplates[i] != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Заполняет пустые слоты копиями по шаблонам — вызывай перед раскладкой на экран (бросок).</summary>
+    public void ReplenishConsumedDice()
+    {
+        if (diceObjects == null || dicePrefabTemplates == null)
+        {
+            return;
+        }
+
+        int n = Mathf.Min(diceObjects.Count, dicePrefabTemplates.Count);
+        for (int i = 0; i < n; i++)
+        {
+            if (diceObjects[i] != null)
+            {
+                continue;
+            }
+
+            GameObject template = dicePrefabTemplates[i];
+            if (template == null)
+            {
+                continue;
+            }
+
+            diceObjects[i] = Instantiate(template, transform, false);
+        }
+    }
 
     public virtual bool TryAddDice(Dice dice)
     {
@@ -71,11 +130,15 @@ public abstract class Modules : MonoBehaviour
             if (diceObjects[i] == null)
             {
                 diceObjects[i] = diceGo;
+                EnsureDiceTemplateListSize();
+                dicePrefabTemplates[i] = diceGo;
                 return true;
             }
         }
 
         diceObjects.Add(diceGo);
+        EnsureDiceTemplateListSize();
+        dicePrefabTemplates[diceObjects.Count - 1] = diceGo;
         return true;
     }
 
@@ -113,12 +176,27 @@ public abstract class Modules : MonoBehaviour
             return false;
         }
 
-        return diceObjects.Remove(dice.gameObject);
+        int idx = DiceObjectIndex(dice.gameObject);
+        if (idx < 0)
+        {
+            return false;
+        }
+
+        diceObjects[idx] = null;
+        return true;
     }
 
     public void ClearDices()
     {
-        diceObjects.Clear();
+        if (diceObjects == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < diceObjects.Count; i++)
+        {
+            diceObjects[i] = null;
+        }
     }
 
     [Header("Сброс кубиков с экрана после хода юнита")]
@@ -220,6 +298,50 @@ public abstract class Modules : MonoBehaviour
         }
 
         return -1;
+    }
+
+    /// <summary>Сохраняет ссылки из инспектора как шаблоны; экземпляры не создаём до <see cref="ReplenishConsumedDice"/>.</summary>
+    private void CacheDiceTemplatesAndClearRuntimeSlots()
+    {
+        if (diceObjects == null)
+        {
+            return;
+        }
+
+        dicePrefabTemplates = new List<GameObject>(diceObjects.Count);
+        for (int i = 0; i < diceObjects.Count; i++)
+        {
+            GameObject src = diceObjects[i];
+            if (src == null)
+            {
+                dicePrefabTemplates.Add(null);
+                continue;
+            }
+
+            if (transform.IsChildOf(src.transform))
+            {
+                Debug.LogWarning($"{name}: кубик «{src.name}» в слоте {i} выше модуля в иерархии — слот очищен.");
+                dicePrefabTemplates.Add(null);
+                diceObjects[i] = null;
+                continue;
+            }
+
+            dicePrefabTemplates.Add(src);
+            diceObjects[i] = null;
+        }
+    }
+
+    private void EnsureDiceTemplateListSize()
+    {
+        if (dicePrefabTemplates == null)
+        {
+            dicePrefabTemplates = new List<GameObject>();
+        }
+
+        while (dicePrefabTemplates.Count < diceObjects.Count)
+        {
+            dicePrefabTemplates.Add(null);
+        }
     }
 
     private sealed class DiceResolvedList : IReadOnlyList<Dice>

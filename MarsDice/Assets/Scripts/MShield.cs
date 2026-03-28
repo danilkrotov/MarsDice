@@ -104,12 +104,10 @@ public class MShield : Modules
 
 
 
-    private void Awake()
-
+    protected override void Awake()
     {
-
+        base.Awake();
         type = ModuleType.Shield;
-
     }
 
 

@@ -44,6 +44,16 @@ public class BattleController : MonoBehaviour
             module.Dices);
     }
 
+    /// <summary>Одна группа кубиков по центру экрана (как строка текста по центру), вдоль camera.right.</summary>
+    public void LayoutDiceGroupCenteredOnScreen(IReadOnlyList<Dice> dices)
+    {
+        DiceScreenLayout.LayoutDiceCenteredOnScreen(
+            Camera.main,
+            diceViewDistanceFromCamera,
+            diceHorizontalSpacing,
+            dices);
+    }
+
     private IEnumerator PlayTurnSequence()
     {
         // Один кадр — все Awake/Start успевают (модули, кубики на MGenerator, StartScript).

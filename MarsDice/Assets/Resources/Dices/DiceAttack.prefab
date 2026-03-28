@@ -51,7 +51,7 @@ MeshCollider:
   m_GameObject: {fileID: 1162077789960089829}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -149,7 +149,7 @@ MeshCollider:
   m_GameObject: {fileID: 2223593885436605026}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -225,7 +225,7 @@ Transform:
   m_GameObject: {fileID: 3179447223335553505}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.7, y: 0.7, z: 0.7}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6029582599891187506}
@@ -252,7 +252,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3179447223335553505}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -328,6 +328,13 @@ MonoBehaviour:
   angularSpeedRange: {x: 360, y: 900}
   faceOffset: 0.005
   settleDuration: 0.15
+  enableFaceHoverHighlight: 1
+  hoverHighlightColor: {r: 1, g: 0.92, b: 0.45, a: 1}
+  hoverBlend: 0.4
+  hoverRaycastMaxDistance: 80
+  hoverRaycastLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1 &3247462117665161140
 GameObject:
   m_ObjectHideFlags: 0
@@ -379,7 +386,7 @@ MeshCollider:
   m_GameObject: {fileID: 3247462117665161140}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -477,7 +484,7 @@ MeshCollider:
   m_GameObject: {fileID: 4433646602695785342}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -575,7 +582,7 @@ MeshCollider:
   m_GameObject: {fileID: 5051694730748573156}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -673,7 +680,7 @@ MeshCollider:
   m_GameObject: {fileID: 5624481768136691922}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30

@@ -27,6 +27,7 @@ public class DamageDeal : BattleActions
                 continue;
             }
 
+            module.ReplenishConsumedDice();
             battleController.LayoutModuleDice(module);
 
             IReadOnlyList<Dice> dices = module.Dices;
@@ -51,6 +52,9 @@ public class DamageDeal : BattleActions
                 }
 
                 Debug.Log($"Unit {unit.gameObject.name}, кубик #{diceNumber}: выпало {dice.LastResult}, failed={dice.LastFailed}");
+
+                module.RemoveDice(dice);
+                Object.Destroy(dice.gameObject);
             }
         }
     }

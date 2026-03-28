@@ -49,6 +49,11 @@ public class MGenerator : Modules
         return base.TryAddDice(dice);
     }
 
+    protected override void Awake()
+    {
+        base.Awake();
+    }
+
     protected override void OnValidate()
     {
         base.OnValidate();

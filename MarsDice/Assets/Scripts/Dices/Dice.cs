@@ -494,8 +494,7 @@ public class Dice : MonoBehaviour
             return;
         }
 
-        Vector3 centerLocal = transform.InverseTransformPoint(ownerRenderer.bounds.center);
-        Vector3 sizeLocal = transform.InverseTransformVector(ownerRenderer.bounds.size);
+        GetDiceBodyLocalBounds(ownerRenderer, out Vector3 centerLocal, out Vector3 sizeLocal);
 
         for (int i = 0; i < localFaceDirections.Length; i++)
         {
@@ -504,6 +503,32 @@ public class Dice : MonoBehaviour
         }
 
         CacheFaceBaseColors();
+    }
+
+    /// <summary>
+    /// Локальный центр и размер тела кубика для раскладки граней.
+    /// Нельзя брать Renderer.bounds.size и кормить в InverseTransformVector — это мировой AABB по осям мира;
+    /// на повёрнутом кубе он «раздувается» и даёт несоразмерные Quad'ы (визуально «вытянутый» кубик).
+    /// </summary>
+    private void GetDiceBodyLocalBounds(Renderer ownerRenderer, out Vector3 centerLocal, out Vector3 sizeLocal)
+    {
+        MeshFilter meshFilter = GetComponent<MeshFilter>();
+        if (meshFilter != null && meshFilter.sharedMesh != null)
+        {
+            Bounds meshBounds = meshFilter.sharedMesh.bounds;
+            centerLocal = meshBounds.center;
+            sizeLocal = Vector3.Scale(meshBounds.size, transform.localScale);
+            return;
+        }
+
+        Bounds worldBounds = ownerRenderer.bounds;
+        centerLocal = transform.InverseTransformPoint(worldBounds.center);
+        Vector3 lossy = transform.lossyScale;
+        const float eps = 1e-5f;
+        sizeLocal = new Vector3(
+            worldBounds.size.x / Mathf.Max(Mathf.Abs(lossy.x), eps),
+            worldBounds.size.y / Mathf.Max(Mathf.Abs(lossy.y), eps),
+            worldBounds.size.z / Mathf.Max(Mathf.Abs(lossy.z), eps));
     }
 
     private void EnsureFaceVisualExists(int index)
