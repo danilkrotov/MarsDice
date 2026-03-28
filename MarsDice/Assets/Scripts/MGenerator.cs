@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class MGenerator : Modules
@@ -15,6 +16,16 @@ public class MGenerator : Modules
     public int CurrentCharge => currentCharge;
     public int MaxCharge => maxCharge;
 
+    public void AddCharge(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        currentCharge = Mathf.Min(maxCharge, currentCharge + amount);
+    }
+
     public override bool TryAddDice(Dice dice)
     {
         if (dice != null && !(dice is EnergyDice))
@@ -26,7 +37,8 @@ public class MGenerator : Modules
         return base.TryAddDice(dice);
     }
 
-    private void Start()
+    // Awake: кубики есть до Start() у других скриптов (BattleController проверяет Dices в том же кадре).
+    private void Awake()
     {
         SpawnStartEnergyDice();
     }
@@ -77,6 +89,29 @@ public class MGenerator : Modules
         if (!TryAddDice(energyDice))
         {
             Destroy(diceObject);
+            return;
+        }
+
+        // Не вызываем раскладку по экрану здесь: кубик остаётся у модуля до боевой фазы
+        // (EnergyRegen / DamageDeal вызывают BattleController.LayoutModuleDice перед броском).
+    }
+
+    public override void ResetDiceToModuleLocalLayout()
+    {
+        IReadOnlyList<Dice> list = Dices;
+        int idx = 0;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i] == null)
+            {
+                continue;
+            }
+
+            Transform t = list[i].transform;
+            t.SetParent(transform, false);
+            t.localPosition = startDiceLocalPosition + new Vector3(idx * resetDiceHorizontalStep, 0f, 0f);
+            t.localRotation = Quaternion.identity;
+            idx++;
         }
     }
 }

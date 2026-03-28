@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -11,23 +10,23 @@ public class Unit : MonoBehaviour
     [SerializeField] private int maxModules = 3;
     [SerializeField] private List<Modules> modules = new List<Modules>();
 
-    [Header("Префабы кубиков этого юнита")]
-    [SerializeField] private List<GameObject> dicePrefabs = new List<GameObject>();
-
     [Header("HP")]
     [SerializeField] private int maxHealth = 10;
-    [SerializeField] private Vector3 healthBarOffset = new Vector3(0f, 1.5f, 0f);
 
-    public IReadOnlyList<GameObject> DicePrefabs => dicePrefabs;
+    [Header("Щит (отображение на Interface)")]
+    [Min(0)]
+    [SerializeField] private int maxShield = 10;
+
     public int CurrentHealth => currentHealth;
-    public IReadOnlyList<GameObject> LastSpawnedDices => lastSpawnedDices;
+    public int MaxHealth => maxHealth;
+    public int CurrentShield => currentShield;
+    public int MaxShield => maxShield;
     public IReadOnlyList<Modules> Modules => modules;
     public int MinModules => minModules;
     public int MaxModules => maxModules;
 
     private int currentHealth;
-    private HealthBarVisual healthBar;
-    private readonly List<GameObject> lastSpawnedDices = new List<GameObject>();
+    private int currentShield;
 
     public void AddModule(Modules module)
     {
@@ -71,8 +70,33 @@ public class Unit : MonoBehaviour
     private void Start()
     {
         currentHealth = maxHealth;
-        CreateHealthBar();
-        RefreshHealthBar();
+        currentShield = 0;
+    }
+
+    public void GetDisplayedEnergy(out int current, out int max)
+    {
+        current = 0;
+        max = 0;
+        IReadOnlyList<Modules> list = Modules;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i] is MGenerator gen)
+            {
+                current = gen.CurrentCharge;
+                max = gen.MaxCharge;
+                return;
+            }
+        }
+    }
+
+    public void SetShield(int value)
+    {
+        currentShield = Mathf.Clamp(value, 0, maxShield);
+    }
+
+    public void AddShield(int delta)
+    {
+        SetShield(currentShield + delta);
     }
 
     private void OnValidate()
@@ -122,112 +146,47 @@ public class Unit : MonoBehaviour
         return n;
     }
 
-    private void Update()
-    {
-        if (healthBar != null)
-        {
-            healthBar.root.position = transform.position + healthBarOffset;
-        }
-    }
-
     public void TakeDamage()
     {
         currentHealth = Mathf.Max(0, currentHealth - 1);
-        RefreshHealthBar();
         Debug.Log($"{name} получил 1 урона. HP: {currentHealth}/{maxHealth}");
     }
 
-    public bool HasAtLeastOneDicePrefab()
+    public bool HasAtLeastOneDiceInModules()
     {
-        for (int i = 0; i < dicePrefabs.Count; i++)
+        IReadOnlyList<Modules> list = Modules;
+        for (int m = 0; m < list.Count; m++)
         {
-            if (dicePrefabs[i] != null)
+            if (list[m] == null)
             {
-                return true;
+                continue;
+            }
+
+            IReadOnlyList<Dice> dices = list[m].Dices;
+            for (int d = 0; d < dices.Count; d++)
+            {
+                if (dices[d] != null)
+                {
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    public void AddSpawnedDice(GameObject diceObject)
+    /// <summary>
+    /// Убирает кубики с центра экрана — возвращает под соответствующие модули (перед следующим юнитом).
+    /// </summary>
+    public void ResetModuleDiceToLocalLayout()
     {
-        if (diceObject != null)
+        Modules[] allModules = GetComponentsInChildren<Modules>(true);
+        for (int i = 0; i < allModules.Length; i++)
         {
-            lastSpawnedDices.Add(diceObject);
-        }
-    }
-
-    public void ClearSpawnedDices()
-    {
-        for (int i = 0; i < lastSpawnedDices.Count; i++)
-        {
-            if (lastSpawnedDices[i] != null)
+            if (allModules[i] != null)
             {
-                Destroy(lastSpawnedDices[i]);
+                allModules[i].ResetDiceToModuleLocalLayout();
             }
-        }
-
-        lastSpawnedDices.Clear();
-    }
-
-    private void CreateHealthBar()
-    {
-        GameObject root = new GameObject($"{name}_HealthBar");
-        root.transform.position = transform.position + healthBarOffset;
-
-        GameObject background = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        background.name = "Background";
-        background.transform.SetParent(root.transform, false);
-        background.transform.localScale = new Vector3(1.2f, 0.15f, 0.05f);
-        background.GetComponent<Renderer>().material.color = Color.red;
-        Destroy(background.GetComponent<Collider>());
-
-        GameObject fill = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        fill.name = "Fill";
-        fill.transform.SetParent(root.transform, false);
-        fill.transform.localScale = new Vector3(1.2f, 0.1f, 0.03f);
-        fill.GetComponent<Renderer>().material.color = Color.green;
-        Destroy(fill.GetComponent<Collider>());
-
-        TextMesh textMesh = new GameObject("Text").AddComponent<TextMesh>();
-        textMesh.transform.SetParent(root.transform, false);
-        textMesh.transform.localPosition = new Vector3(0f, 0.18f, 0f);
-        textMesh.characterSize = 0.1f;
-        textMesh.anchor = TextAnchor.MiddleCenter;
-        textMesh.alignment = TextAlignment.Center;
-        textMesh.color = Color.white;
-        textMesh.fontSize = 64;
-
-        healthBar = new HealthBarVisual(root.transform, fill.transform, textMesh);
-    }
-
-    private void RefreshHealthBar()
-    {
-        if (healthBar == null || maxHealth <= 0)
-        {
-            return;
-        }
-
-        float ratio = Mathf.Clamp01((float)currentHealth / maxHealth);
-        Vector3 scale = healthBar.fill.localScale;
-        scale.x = 1.2f * ratio;
-        healthBar.fill.localScale = scale;
-        healthBar.fill.localPosition = new Vector3(-0.6f + (scale.x * 0.5f), 0f, -0.01f);
-        healthBar.text.text = $"{currentHealth}/{maxHealth}";
-    }
-
-    private class HealthBarVisual
-    {
-        public readonly Transform root;
-        public readonly Transform fill;
-        public readonly TextMesh text;
-
-        public HealthBarVisual(Transform root, Transform fill, TextMesh text)
-        {
-            this.root = root;
-            this.fill = fill;
-            this.text = text;
         }
     }
 }

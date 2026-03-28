@@ -142,10 +142,22 @@ MonoBehaviour:
   minModules: 1
   maxModules: 3
   modules: []
-  dicePrefabs:
-  - {fileID: 3179447223335553505, guid: e633f0c4ef3301047855d54713ef9696, type: 3}
   maxHealth: 10
-  healthBarOffset: {x: 0, y: 1.5, z: 0}
+  maxShield: 10
+--- !u!114 &14391926
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 14391916}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85c54c618f87989459d27f2ee2863f8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stackOffset: {x: 0, y: 1.5, z: 0}
+  verticalBarStep: 0.22
 --- !u!1 &176875597
 GameObject:
   m_ObjectHideFlags: 0
@@ -157,6 +169,7 @@ GameObject:
   - component: {fileID: 176875599}
   - component: {fileID: 176875600}
   - component: {fileID: 176875601}
+  - component: {fileID: 176875602}
   m_Layer: 0
   m_Name: Scripts
   m_TagString: Scripts
@@ -195,8 +208,7 @@ MonoBehaviour:
   - {fileID: 1724034495}
   - {fileID: 14391916}
   diceSpawnOffset: {x: 0, y: 1.2, z: 0}
-  battleActions:
-  - {fileID: 176875601}
+  battleActions: []
 --- !u!114 &176875601
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -207,6 +219,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76f8cd31700ec2949ab450aad88f2b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &176875602
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 176875597}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d74cc0650e780a45b4af9d250416cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &241049101
@@ -422,11 +446,22 @@ MonoBehaviour:
   minModules: 1
   maxModules: 3
   modules: []
-  dicePrefabs:
-  - {fileID: 3179447223335553505, guid: e633f0c4ef3301047855d54713ef9696, type: 3}
-  - {fileID: 3179447223335553505, guid: e633f0c4ef3301047855d54713ef9696, type: 3}
   maxHealth: 10
-  healthBarOffset: {x: 0, y: 1.5, z: 0}
+  maxShield: 10
+--- !u!114 &1724034505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1724034495}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85c54c618f87989459d27f2ee2863f8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stackOffset: {x: 0, y: 1.5, z: 0}
+  verticalBarStep: 0.22
 --- !u!1001 &1746802208
 PrefabInstance:
   m_ObjectHideFlags: 0

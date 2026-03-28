@@ -16,38 +16,42 @@ public class DamageDeal : BattleActions
         }
 
         IReadOnlyList<GameObject> unitObjects = battleController.UnitObjects;
-        for (int diceIndex = 0; diceIndex < unit.DicePrefabs.Count; diceIndex++)
+        int diceNumber = 0;
+        IReadOnlyList<Modules> modules = unit.Modules;
+
+        for (int mi = 0; mi < modules.Count; mi++)
         {
-            GameObject dicePrefab = unit.DicePrefabs[diceIndex];
-            if (dicePrefab == null)
+            Modules module = modules[mi];
+            if (module == null)
             {
                 continue;
             }
 
-            Vector3 spawnPosition = unit.transform.position + battleController.DiceSpawnOffset;
-            GameObject diceObject = Object.Instantiate(dicePrefab, spawnPosition, Quaternion.identity);
-            unit.AddSpawnedDice(diceObject);
+            battleController.LayoutModuleDice(module);
 
-            Dice dice = diceObject.GetComponent<Dice>();
-            if (dice == null)
+            IReadOnlyList<Dice> dices = module.Dices;
+            for (int di = 0; di < dices.Count; di++)
             {
-                Debug.LogWarning($"Префаб {dicePrefab.name} не содержит компонент Dice.");
-                Object.Destroy(diceObject);
-                continue;
-            }
-
-            yield return dice.RollDice();
-
-            if (!dice.LastFailed)
-            {
-                Unit targetUnit = GetNextTargetUnit(unitIndex, unitObjects);
-                if (targetUnit != null)
+                Dice dice = dices[di];
+                if (dice == null)
                 {
-                    targetUnit.TakeDamage();
+                    continue;
                 }
-            }
 
-            Debug.Log($"Unit {unit.gameObject.name}, кубик #{diceIndex + 1}: выпало {dice.LastResult}, failed={dice.LastFailed}");
+                diceNumber++;
+                yield return dice.RollDice();
+
+                if (!dice.LastFailed)
+                {
+                    Unit targetUnit = GetNextTargetUnit(unitIndex, unitObjects);
+                    if (targetUnit != null)
+                    {
+                        targetUnit.TakeDamage();
+                    }
+                }
+
+                Debug.Log($"Unit {unit.gameObject.name}, кубик #{diceNumber}: выпало {dice.LastResult}, failed={dice.LastFailed}");
+            }
         }
     }
 

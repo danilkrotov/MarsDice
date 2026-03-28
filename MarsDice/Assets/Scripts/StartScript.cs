@@ -10,7 +10,8 @@ public class StartScript : MonoBehaviour
     [SerializeField] private string playerGeneratorChildName = "MGenerator";
     [SerializeField] private string npcGeneratorChildName = "MGenerator";
 
-    private void Start()
+    // Awake: до любого Start() (в т.ч. BattleController), чтобы в списке модулей уже были MGenerator.
+    private void Awake()
     {
         if (playerUnit != null)
         {

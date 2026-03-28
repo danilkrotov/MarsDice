@@ -111,6 +111,36 @@ public abstract class Modules : MonoBehaviour
         dices.Clear();
     }
 
+    [Header("Сброс кубиков с экрана после хода юнита")]
+    [SerializeField] protected float resetDiceHorizontalStep = 0.55f;
+
+    /// <summary>
+    /// Возвращает кубики под трансформ модуля (убирает с центра экрана после раскладки DiceScreenLayout).
+    /// </summary>
+    public virtual void ResetDiceToModuleLocalLayout()
+    {
+        if (dices == null)
+        {
+            return;
+        }
+
+        int slot = 0;
+        for (int i = 0; i < dices.Count; i++)
+        {
+            Dice dice = dices[i];
+            if (dice == null)
+            {
+                continue;
+            }
+
+            Transform t = dice.transform;
+            t.SetParent(transform, false);
+            t.localPosition = new Vector3(slot * resetDiceHorizontalStep, 0f, 0f);
+            t.localRotation = Quaternion.identity;
+            slot++;
+        }
+    }
+
     protected virtual void OnValidate()
     {
         if (minDiceSlots < 1)

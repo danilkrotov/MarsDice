@@ -6,6 +6,11 @@ public class BattleController : MonoBehaviour
 {
     [SerializeField] private List<GameObject> unitObjects = new List<GameObject>();
     [SerializeField] private Vector3 diceSpawnOffset = new Vector3(0f, 1.2f, 0f);
+
+    [Header("Раскладка кубиков по центру экрана (как текст по центру)")]
+    [SerializeField] private float diceViewDistanceFromCamera = 8f;
+    [SerializeField] private float diceHorizontalSpacing = 1.25f;
+
     [SerializeField] private List<BattleActions> battleActions = new List<BattleActions>();
     private string currentPhaseName = "-";
     private bool turnInProgress;
@@ -22,9 +27,28 @@ public class BattleController : MonoBehaviour
 
     public IReadOnlyList<GameObject> UnitObjects => unitObjects;
     public Vector3 DiceSpawnOffset => diceSpawnOffset;
+    public float DiceViewDistanceFromCamera => diceViewDistanceFromCamera;
+    public float DiceHorizontalSpacing => diceHorizontalSpacing;
+
+    public void LayoutModuleDice(Modules module)
+    {
+        if (module == null)
+        {
+            return;
+        }
+
+        DiceScreenLayout.LayoutDiceCenteredOnScreen(
+            Camera.main,
+            diceViewDistanceFromCamera,
+            diceHorizontalSpacing,
+            module.Dices);
+    }
 
     private IEnumerator PlayTurnSequence()
     {
+        // Один кадр — все Awake/Start успевают (модули, кубики на MGenerator, StartScript).
+        yield return null;
+
         if (turnInProgress)
         {
             yield break;
@@ -37,7 +61,6 @@ public class BattleController : MonoBehaviour
         }
 
         turnInProgress = true;
-        ClearAllSpawnedDice();
 
         for (int unitIndex = 0; unitIndex < unitObjects.Count; unitIndex++)
         {
@@ -55,9 +78,9 @@ public class BattleController : MonoBehaviour
                 continue;
             }
 
-            if (!unit.HasAtLeastOneDicePrefab())
+            if (!unit.HasAtLeastOneDiceInModules())
             {
-                Debug.LogWarning($"У Unit на объекте {unitObject.name} не назначены префабы кубиков.");
+                Debug.LogWarning($"У Unit на объекте {unitObject.name} нет кубиков в модулях.");
                 continue;
             }
 
@@ -71,27 +94,22 @@ public class BattleController : MonoBehaviour
 
                 currentPhaseName = string.IsNullOrWhiteSpace(action.PhaseName) ? "-" : action.PhaseName;
                 yield return action.Action(this, unitIndex, unit);
+                yield return WaitForLeftClickAnywhere();
             }
+
+            unit.ResetModuleDiceToLocalLayout();
         }
 
         currentPhaseName = "-";
         turnInProgress = false;
     }
 
-    private void ClearAllSpawnedDice()
+    private static IEnumerator WaitForLeftClickAnywhere()
     {
-        for (int i = 0; i < unitObjects.Count; i++)
+        while (!Input.GetMouseButtonDown(0))
         {
-            if (unitObjects[i] == null)
-            {
-                continue;
-            }
-
-            Unit unit = unitObjects[i].GetComponent<Unit>();
-            if (unit != null)
-            {
-                unit.ClearSpawnedDices();
-            }
+            yield return null;
         }
     }
+
 }
