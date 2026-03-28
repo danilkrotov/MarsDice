@@ -168,8 +168,9 @@ GameObject:
   m_Component:
   - component: {fileID: 176875599}
   - component: {fileID: 176875600}
-  - component: {fileID: 176875601}
   - component: {fileID: 176875602}
+  - component: {fileID: 176875603}
+  - component: {fileID: 176875601}
   m_Layer: 0
   m_Name: Scripts
   m_TagString: Scripts
@@ -208,7 +209,11 @@ MonoBehaviour:
   - {fileID: 1724034495}
   - {fileID: 14391916}
   diceSpawnOffset: {x: 0, y: 1.2, z: 0}
-  battleActions: []
+  diceViewDistanceFromCamera: 8
+  diceHorizontalSpacing: 1.25
+  battleActions:
+  - {fileID: 176875602}
+  - {fileID: 176875603}
 --- !u!114 &176875601
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -231,6 +236,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8d74cc0650e780a45b4af9d250416cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &176875603
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 176875597}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 847222e1f5205c64983e046a402a7164, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &241049101
@@ -266,6 +283,8 @@ MonoBehaviour:
   npcUnit: {fileID: 14391921}
   playerGeneratorChildName: MGenerator
   npcGeneratorChildName: MGenerator
+  playerShieldChildName: MShield
+  npcShieldChildName: MShield
 --- !u!4 &241049103
 Transform:
   m_ObjectHideFlags: 0

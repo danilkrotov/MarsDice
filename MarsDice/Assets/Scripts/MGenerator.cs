@@ -26,6 +26,19 @@ public class MGenerator : Modules
         currentCharge = Mathf.Min(maxCharge, currentCharge + amount);
     }
 
+    /// <returns>Сколько реально списано (не больше запрошенного и не больше текущего заряда).</returns>
+    public int SubtractCharge(int amount)
+    {
+        if (amount <= 0)
+        {
+            return 0;
+        }
+
+        int take = Mathf.Min(currentCharge, amount);
+        currentCharge -= take;
+        return take;
+    }
+
     public override bool TryAddDice(Dice dice)
     {
         if (dice != null && !(dice is EnergyDice))

@@ -6,7 +6,8 @@ public abstract class Modules : MonoBehaviour
 {
     public enum ModuleType
     {
-        Generator
+        Generator,
+        Shield
     }
 
     public enum ModuleSize
