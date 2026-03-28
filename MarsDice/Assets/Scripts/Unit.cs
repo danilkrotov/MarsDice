@@ -274,8 +274,39 @@ public class Unit : MonoBehaviour
 
     public void TakeDamage()
     {
-        currentHealth = Mathf.Max(0, currentHealth - 1);
-        Debug.Log($"{name} получил 1 урона. HP: {currentHealth}/{maxHealth}");
+        TakeDamage(1);
+    }
+
+    public void TakeDamage(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        int absorbedByShield = Mathf.Min(currentShield, amount);
+        if (absorbedByShield > 0)
+        {
+            SetShield(currentShield - absorbedByShield);
+        }
+
+        int damageToHealth = amount - absorbedByShield;
+        if (damageToHealth > 0)
+        {
+            currentHealth = Mathf.Max(0, currentHealth - damageToHealth);
+            NotifyBattleControllerHealthChanged();
+        }
+
+        Debug.Log($"{name}: урон {amount} (щит −{absorbedByShield}, HP −{damageToHealth}). HP: {currentHealth}/{maxHealth}, щит: {currentShield}/{MaxShield}.");
+    }
+
+    private static void NotifyBattleControllerHealthChanged()
+    {
+        BattleController bc = Object.FindObjectOfType<BattleController>();
+        if (bc != null)
+        {
+            bc.NotifyHealthChangedAfterDamage();
+        }
     }
 
     public bool HasAtLeastOneDiceInModules()

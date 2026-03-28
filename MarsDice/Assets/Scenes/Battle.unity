@@ -144,6 +144,7 @@ MonoBehaviour:
   moduleObjects:
   - {fileID: 8587407342049505586, guid: eda06df4865f27241a819567146476dc, type: 3}
   - {fileID: 906017148015409437, guid: fa140261ba6f7ca44801a91c7ddcecb7, type: 3}
+  - {fileID: 906017148015409437, guid: be01f5b08b5aad84f93c3173e9dce4c0, type: 3}
   maxHealth: 10
   isAI: 1
 --- !u!114 &14391926
@@ -421,7 +422,7 @@ MonoBehaviour:
   - {fileID: 8587407342049505586, guid: eda06df4865f27241a819567146476dc, type: 3}
   - {fileID: 906017148015409437, guid: fa140261ba6f7ca44801a91c7ddcecb7, type: 3}
   - {fileID: 906017148015409437, guid: fa140261ba6f7ca44801a91c7ddcecb7, type: 3}
-  - {fileID: 906017148015409437, guid: fa140261ba6f7ca44801a91c7ddcecb7, type: 3}
+  - {fileID: 906017148015409437, guid: be01f5b08b5aad84f93c3173e9dce4c0, type: 3}
   maxHealth: 10
   isAI: 0
 --- !u!114 &1724034505

@@ -13,7 +13,6 @@
 | Кубики | `Dices/Dice.cs`, `Dices/EnergyDice.cs`, `Dices/ShieldDice.cs` |
 | Раскладка кубиков | `DiceScreenLayout.cs` |
 | UI | `Interface.cs` |
-| Старт сцены | `StartScript.cs` |
 | Фазы боя | `BattleActions/BattleActions.cs`, `EnergyRegen.cs`, `ShieldUp.cs`, `DamageDeal.cs` |
 
 Префабы кубиков подгружаются из **`Resources`** (например `Resources/Dices/DiceEnergy`, `DiceShield`).
@@ -23,11 +22,11 @@
 ## Юнит (`Unit`)
 
 - **Модули** — список `Modules` (мин/макс количество в инспекторе).
-- **HP** — `maxHealth`, `TakeDamage()`.
-- **Щит для UI** — `maxShield`, `currentShield` (в `Start()` щит обнуляется), `AddShield` / `SetShield`. Синяя полоска в `Interface` читает эти значения.
-- **Энергия для UI** — `GetDisplayedEnergy`: берётся с **первого** `MGenerator` в списке модулей (если несколько генераторов, полоска показывает только первый).
-- **Кубики** живут только на модулях; `HasAtLeastOneDiceInModules()` проверяет наличие непустых `Dice` в любом модуле.
-- **`ResetModuleDiceToLocalLayout()`** — все `Modules` на иерархии юнита возвращают кубики под свои трансформы (после раскладки по экрану).
+- **HP** — `maxHealth`, `TakeDamage()`; в `Start()` здоровье выставляется в `maxHealth`.
+- **Щит для UI** — `currentShield` / `MaxShield`; в `Start()` начальное значение берётся как **сумма `currentShield` по всем `MShield`** в модулях (не обнуляется). `AddShield` / `SetShield`; полоска щита в `Interface` читает `Unit`.
+- **Энергия для UI** — `GetDisplayedEnergy`: **сумма** `currentCharge` и **сумма** `maxCharge` по **всем** `MGenerator` в списке модулей.
+- **Кубики** живут только на модулях; `HasAtLeastOneDiceInModules()` проверяет, что хотя бы у одного модуля есть настроенный кубик (`HasConfiguredDiceForBattle`).
+- **`ResetModuleDiceToLocalLayout()`** — все `Modules` в иерархии юнита (`GetComponentsInChildren`) возвращают учтённые в слотах кубики под свои трансформы (после раскладки по экрану).
 
 ---
 
@@ -36,28 +35,34 @@
 Базовый класс для оборудования юнита.
 
 - Параметры слотов кубиков: `minDiceSlots`, `maxDiceSlots`, `diceSlots` (фактический лимит списка `Dices`).
-- **`TryAddDice` / `RemoveDice` / `Dices`** — список ссылок на кубики в сцене (пустые слоты в инспекторе допускаются как `null`).
-- **`ResetDiceToModuleLocalLayout()`** — виртуальный сброс позиций кубиков относительно модуля; шаг по X задаётся полем **`resetDiceHorizontalStep`**.
+- В **`Awake`** вызывается **`CacheDiceTemplatesAndClearRuntimeSlots()`**: объекты из инспектора сохраняются как **шаблоны** для `Instantiate`, слоты `diceObjects` очищаются — **экземпляры в сцене до боя не создаются**.
+- **`ReplenishConsumedDice()`** — заполняет пустые слоты копиями по шаблонам (перед раскладкой кубиков на экран).
+- **`HasConfiguredDiceForBattle()`** — есть ли шаблон или уже созданный экземпляр в слотах (для пропуска юнита без кубиков).
+- **`TryAddDice` / `RemoveDice` / `Dices`** — список ссылок на кубики в сцене (пустые слоты — `null`).
+- **`RemoveDice`** ищет слот и по `GameObject` кубика, и если компонент **`Dice`** лежит на **дочернем** объекте относительно корня слота.
+- **`GetSlotRootIfContains(Dice)`** — корень объекта в слоте (`diceObjects[i]`), если этот `Dice` на нём или внутри него; нужен перед `Destroy`, чтобы удалять весь префаб кубика.
+- **`ResetDiceToModuleLocalLayout()`** — виртуальный сброс позиций кубиков относительно модуля; шаг по X — **`resetDiceHorizontalStep`**.
 - Тип в enum: `ModuleType` — `Generator`, `Shield`.
 
 ### `MGenerator`
 
 - **Заряд** — `currentCharge` / `maxCharge`; `AddCharge`, **`SubtractCharge`** (списание, в т.ч. для фазы щита).
-- Принимает только **`EnergyDice`**; стартовый кубик создаётся в **`Awake`** из `Resources` по пути **`energyDicePrefabPath`** (по умолчанию `Dices/DiceEnergy`).
-- Переопределён сброс позиций кубиков с учётом **`startDiceLocalPosition`**.
+- Принимает только **`EnergyDice`** (`TryAddDice`).
+- Переопределён **`ResetDiceToModuleLocalLayout()`** с учётом **`startDiceLocalPosition`** и `resetDiceHorizontalStep`.
 
 ### `MShield`
 
-- **Щит модуля** — `currentShield` / `maxShield` (по умолчанию 10/10); `AddShield`, `ReduceShield`, `SetShield`.
-- Принимает только **`ShieldDice`**; стартовый кубик — префаб **`Dices/DiceShield`**.
-- В `Awake` / `OnValidate` выставляется `ModuleType.Shield`.
+- **Щит модуля** — `currentShield` / `maxShield`; `AddShield`, `ReduceShield`, `SetShield`.
+- Принимает только **`ShieldDice`** (`TryAddDice` / `EnforceDiceType`).
+- В `OnValidate` выставляется `ModuleType.Shield`.
+- **`ResetDiceToModuleLocalLayout()`** — как у генератора, со своим `startDiceLocalPosition`.
 
 ---
 
 ## Кубики (`Dice`)
 
 - Базовый **`Dice`**: грани 1–6, текстуры граней, флаги «провал» по граням, анимация броска, `RollDice()` (корутина), `LastResult`, `LastFailed`.
-- Определение верхней грани — относительно **`Camera.main`**.
+- Определение верхней грани — относительно **`Camera.main`**; геометрия граней учитывает **`MeshFilter.sharedMesh.bounds`** и масштаб трансформа (корректный вид при неравномерном `localScale`).
 - **`EnergyDice`** — на каждую грань своё значение восстановления энергии: `GetEnergyRestoreByFace(face)`.
 - **`ShieldDice`** — на каждую грань: восстановление щита и стоимость энергии — `GetShieldRestoreByFace`, `GetEnergyCostByFace`.
 
@@ -67,23 +72,23 @@
 
 - Точка в центре экрана: `ViewportToWorldPoint(0.5, 0.5, distanceFromCamera)`.
 - Несколько кубиков выстраиваются вдоль **`camera.right`** с шагом **`horizontalSpacing`**, группа центрируется (как выравнивание текста по центру).
-- Вызывается из **`BattleController.LayoutModuleDice(module)`** перед бросками в фазах.
+- Вызывается из **`BattleController.LayoutModuleDice(module)`** и **`BattleController.LayoutDiceGroupCenteredOnScreen(dices)`** (несколько модулей / одна общая группа).
 
 ---
 
 ## Контроллер боя (`BattleController`)
 
 1. В **`Start`** запускается корутина **`PlayTurnSequence`**.
-2. Первый кадр — **`yield return null`**, чтобы успели выполниться **`Awake`** у других объектов (в т.ч. `StartScript`, спавн кубиков на модулях).
-3. По очереди **юниты** из `unitObjects` (нужны `Unit` и хотя бы один кубик в модулях).
-4. Для каждого юнита по порядку элементы списка **`battleActions`** (компоненты, наследующие **`BattleActions`**):
+2. Первый кадр — **`yield return null`**, чтобы успели выполниться **`Awake`** у других объектов (модули, юниты и т.д.).
+3. По очереди **юниты** из `unitObjects` (нужны `Unit` и хотя бы один настроенный кубик в модулях).
+4. Для каждого юнита по порядку элементы списка **`battleActions`** (компоненты **`BattleActions`**):
    - показывается имя фазы (`PhaseName`);
    - **`yield return action.Action(this, unitIndex, unit)`**;
-   - ожидание **ЛКМ** по игровому окну;
-   - **`unit.ResetModuleDiceToLocalLayout()`** — кубики убираются с центра экрана.
-5. После всех фаз юнита — ещё один сброс кубиков (на случай пропущенных `null`-слотов в списке фаз).
+   - если **`!unit.IsAI`** и у фазы **`UsesManualAdvanceClick == true`** — ожидание **ЛКМ** по игровому окну (после фазы фазы вроде `EnergyRegen` / `ShieldUp` сами ждут клик внутри корутины и ставят **`UsesManualAdvanceClick => false`**);
+   - **`unit.ResetModuleDiceToLocalLayout()`** — кубики убираются с центра экрана под модули.
+5. После всех фаз юнита — ещё один сброс кубиков.
 
-Настройки в инспекторе: **`diceViewDistanceFromCamera`**, **`diceHorizontalSpacing`**, список **`battleActions`**.
+Настройки в инспекторе: **`diceViewDistanceFromCamera`**, **`diceHorizontalSpacing`** (расстояние между центрами кубиков при групповой раскладке), список **`battleActions`**, **`diceSpawnOffset`** (для других сценариев).
 
 Текущая фаза дублируется в **`OnGUI`** («Фаза: …»).
 
@@ -91,58 +96,52 @@
 
 ## Фазы боя (`BattleActions`)
 
-Базовый класс: абстрактные **`PhaseName`** и **`Action(BattleController, int unitIndex, Unit unit)`**.
+Базовый класс: **`PhaseName`**, **`Action(...)`**, опционально **`UsesManualAdvanceClick`** (по умолчанию `true` — контроллер ждёт ЛКМ после фазы).
 
 | Класс | Назначение |
 |--------|------------|
-| **EnergyRegen** | Все **`MGenerator`** на юните: раскладка кубиков, бросок каждого `EnergyDice`, при успехе — `AddCharge` на своём генераторе. |
-| **ShieldUp** | Все **`MShield`**: раскладка, бросок `ShieldDice`; при успехе проверяется суммарный заряд всех **`MGenerator`**; если хватает энергии по стоимости грани — списание с генераторов по порядку и **`unit.AddShield(restore)`** (синяя полоска). |
-| **DamageDeal** | По модулям из **`unit.Modules`**: раскладка кубиков модуля, бросок; при успехе — урон следующему юниту в `unitObjects` через **`TakeDamage()`**. |
+| **EnergyRegen** | Все **`MGenerator`**: `ReplenishConsumedDice`, общая раскладка всех `EnergyDice` по центру экрана, **параллельный** бросок; начисление заряда по результату; для игрока — ожидание ЛКМ; затем **`RemoveDice`** и **`Destroy`** для каждого выложенного кубика (уничтожается **корень слота**), в конце **`unit.ResetModuleDiceToLocalLayout()`**. **`UsesManualAdvanceClick => false`**. |
+| **ShieldUp** | Все **`MShield`**: пополнение слотов, общая раскладка, **параллельный** бросок; игрок кликает по кубику щита (ЛКМ), ИИ забирает кубики по очереди; при успехе проверяется пул энергии по всем **`MGenerator`**, списание и **`unit.AddShield`**. Кнопка **`OnGUI` «Пропустить»** — досрочный выход: **все оставшиеся кубики щита** снимаются с модулей и **уничтожаются** (слоты пустые; на следующем заходе в фазу `ReplenishConsumedDice` создаст новые). **`UsesManualAdvanceClick => false`**. |
+| **DamageDeal** | По модулям из **`unit.Modules`**: раскладка кубиков модуля, бросок; при успехе — урон следующему юниту в `unitObjects` через **`TakeDamage()`**; снятие кубика с **`RemoveDice`** и **`Destroy`** корня слота. |
 
-Компоненты фаз вешаются на объекты в сцене; в **`BattleController`** в список перетаскиваются **именно ссылки на компоненты** фаз.
+Компоненты фаз вешаются на объекты в сцене; в **`BattleController`** в список перетаскиваются **ссылки на компоненты** фаз.
 
----
-
-## Старт сцены (`StartScript`)
-
-- Выполняется в **`Awake`** (раньше **`Start`** у `BattleController`), чтобы модули уже были в списке юнита.
-- Для **player** и **npc** создаются дочерние объекты с **`MGenerator`** и **`MShield`**, вызывается **`AddModule`**.
-
-Имена дочерних объектов настраиваются отдельно для генератора и щита.
+Модули (`MGenerator`, `MShield` и др.) задаются **в сцене или префабе юнита** и попадают в **`Unit`** через список модулей в инспекторе (`AddModule` / дочерние объекты с компонентом `Modules` — по вашей схеме сборки сцены).
 
 ---
 
 ## Интерфейс (`Interface`)
 
 - Висит на **том же GameObject**, что и **`Unit`**.
-- Три мировые полоски (billboard к камере): **HP**, **энергия** (первый `MGenerator`), **щит** (`Unit`).
+- Три мировые полоски (ориентация как у камеры): **HP**, **энергия** (агрегат по всем `MGenerator` через `Unit.GetDisplayedEnergy`), **щит** (`Unit`).
 - Позиция стека: `transform.position + stackOffset`.
+- **`verticalBarStep`** — расстояние по вертикали между центрами полосок (настраивается в инспекторе).
+- Над каждой полоской — **`TextMesh`** с текущим/максимумом; за цифрами — тёмная **подложка** (unlit-куб), текст ближе к камере по локальному Z.
 
 ---
 
 ## Рекомендуемый порядок настройки в Unity
 
-1. Объекты юнитов: **`Unit`**, при необходимости **`Interface`**.
-2. Объект с **`StartScript`**: назначить `playerUnit` / `npcUnit` (или оставить только одного — по задаче).
-3. Объект с **`BattleController`**: список **`unitObjects`**, порядок = порядок ходов; список **`battleActions`** (например EnergyRegen → ShieldUp → DamageDeal).
-4. На сцене должны быть компоненты фаз и ссылки на них в контроллере.
-5. Префабы **`DiceEnergy`**, **`DiceShield`** лежат в **`Resources/Dices/`** с нужными компонентами **`EnergyDice`** / **`ShieldDice`**.
-6. **`Camera.main`** должен быть задан (тег MainCamera).
+1. Объекты юнитов: **`Unit`**, дочерние (или ссылки на) **`Modules`** с префабами кубиков в слотах; при необходимости **`Interface`** на том же объекте, что и `Unit`.
+2. Объект с **`BattleController`**: список **`unitObjects`**, порядок = порядок ходов; список **`battleActions`** (типично **EnergyRegen → ShieldUp**; при необходимости **DamageDeal** и др.).
+3. На сцене должны быть компоненты фаз и ссылки на них в контроллере.
+4. Префабы **`DiceEnergy`**, **`DiceShield`** лежат в **`Resources/Dices/`** с компонентами **`EnergyDice`** / **`ShieldDice`**; в префабах модулей в слотах указываются ссылки на эти префабы (рантайм-копии создаёт **`ReplenishConsumedDice`**).
+5. **`Camera.main`** должен быть задан (тег MainCamera).
 
 ---
 
 ## Зависимости и порядок выполнения
 
-- Спавн кубиков на **`MGenerator`** / **`MShield`** — в **`Awake`** модулей.
+- Шаблоны кубиков кэшируются в **`Modules.Awake`**; экземпляры для боя появляются при **`ReplenishConsumedDice`** в начале соответствующих фаз.
 - Проверка «есть ли кубики» в **`BattleController`** выполняется после одного кадра ожидания, чтобы не было гонки со **`Start`** других скриптов.
 
 ---
 
 ## Возможные доработки (идеи)
 
-- Показ энергии с нескольких генераторов агрегированно или выбором модуля.
-- Синхронизация щита **`MShield`** с **`Unit`** для боя, если нужен единый пул.
+- Отдельный UI для энергии по каждому генератору (сейчас сумма на одной полоске).
 - Повтор цикла ходов вместо одного прохода по всем юнитам.
+- Кнопка «Пропустить» не через `OnGUI`, а через uGUI/Input System.
 
 ---
 
