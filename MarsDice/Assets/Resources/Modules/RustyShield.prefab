@@ -49,10 +49,9 @@ MonoBehaviour:
   minDiceSlots: 1
   maxDiceSlots: 1
   diceSlots: 1
-  dices:
-  - {fileID: -6444663141039250781, guid: f43758d48bcb3aa4981fa9445d161d6d, type: 3}
+  diceObjects:
+  - {fileID: 3179447223335553505, guid: f43758d48bcb3aa4981fa9445d161d6d, type: 3}
   resetDiceHorizontalStep: 0.55
   currentShield: 10
   maxShield: 10
-  shieldDicePrefabPath: Dices/DiceShield
   startDiceLocalPosition: {x: 0, y: 0, z: 0}

@@ -9,8 +9,7 @@ public class MGenerator : Modules
     [Min(0)]
     [SerializeField] private int maxCharge = 3;
 
-    [Header("Start dice")]
-    [SerializeField] private string energyDicePrefabPath = "Dices/DiceEnergy";
+    [Header("Локальная позиция кубиков при сбросе к модулю")]
     [SerializeField] private Vector3 startDiceLocalPosition = Vector3.zero;
 
     public int CurrentCharge => currentCharge;
@@ -50,12 +49,6 @@ public class MGenerator : Modules
         return base.TryAddDice(dice);
     }
 
-    // Awake: кубики есть до Start() у других скриптов (BattleController проверяет Dices в том же кадре).
-    private void Awake()
-    {
-        SpawnStartEnergyDice();
-    }
-
     protected override void OnValidate()
     {
         base.OnValidate();
@@ -76,37 +69,6 @@ public class MGenerator : Modules
         {
             currentCharge = maxCharge;
         }
-    }
-
-    private void SpawnStartEnergyDice()
-    {
-        GameObject prefab = Resources.Load<GameObject>(energyDicePrefabPath);
-        if (prefab == null)
-        {
-            Debug.LogWarning($"{name}: не найден префаб по пути Resources/{energyDicePrefabPath}");
-            return;
-        }
-
-        GameObject diceObject = Instantiate(prefab, transform);
-        diceObject.transform.localPosition = startDiceLocalPosition;
-        diceObject.transform.localRotation = Quaternion.identity;
-
-        EnergyDice energyDice = diceObject.GetComponent<EnergyDice>();
-        if (energyDice == null)
-        {
-            Debug.LogWarning($"{name}: префаб {prefab.name} не содержит компонент EnergyDice.");
-            Destroy(diceObject);
-            return;
-        }
-
-        if (!TryAddDice(energyDice))
-        {
-            Destroy(diceObject);
-            return;
-        }
-
-        // Не вызываем раскладку по экрану здесь: кубик остаётся у модуля до боевой фазы
-        // (EnergyRegen / DamageDeal вызывают BattleController.LayoutModuleDice перед броском).
     }
 
     public override void ResetDiceToModuleLocalLayout()

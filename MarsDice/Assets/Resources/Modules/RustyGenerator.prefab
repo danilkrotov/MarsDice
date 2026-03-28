@@ -49,9 +49,8 @@ MonoBehaviour:
   minDiceSlots: 1
   maxDiceSlots: 1
   diceSlots: 1
-  dices:
-  - {fileID: 7972591251585617135, guid: 8b5e74fa2207f024d86a757f6fa9cfc1, type: 3}
+  diceObjects:
+  - {fileID: 3179447223335553505, guid: 8b5e74fa2207f024d86a757f6fa9cfc1, type: 3}
   currentCharge: 3
   maxCharge: 3
-  energyDicePrefabPath: Dices/DiceEnergy
   startDiceLocalPosition: {x: 0, y: 0, z: 0}
