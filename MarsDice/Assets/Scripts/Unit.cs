@@ -77,7 +77,8 @@ public class Unit : MonoBehaviour
     private void Start()
     {
         currentHealth = maxHealth;
-        currentShield = 0;
+        // Щит на UI ведёт Unit; начальное значение берём из MShield (префаб/инспектор), а не обнуляем.
+        SetShield(SumShieldCurrentFromModules());
     }
 
     /// <summary>Сумма заряда и максимумов по всем <see cref="MGenerator"/> из <see cref="Modules"/> (полоска энергии в Interface).</summary>
@@ -287,6 +288,22 @@ public class Unit : MonoBehaviour
             if (list[i] is MShield sh)
             {
                 sum += sh.MaxShield;
+            }
+        }
+
+        return sum;
+    }
+
+    /// <summary>Сумма <see cref="MShield.CurrentShield"/> по модулям (стартовый щит с префаба).</summary>
+    private int SumShieldCurrentFromModules()
+    {
+        IReadOnlyList<Modules> list = Modules;
+        int sum = 0;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i] is MShield sh)
+            {
+                sum += sh.CurrentShield;
             }
         }
 
