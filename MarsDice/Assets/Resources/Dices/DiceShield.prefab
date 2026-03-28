@@ -51,7 +51,7 @@ MeshCollider:
   m_GameObject: {fileID: 1162077789960089829}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -149,7 +149,7 @@ MeshCollider:
   m_GameObject: {fileID: 2223593885436605026}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -328,6 +328,13 @@ MonoBehaviour:
   angularSpeedRange: {x: 360, y: 900}
   faceOffset: 0.005
   settleDuration: 0.15
+  enableFaceHoverHighlight: 1
+  hoverHighlightColor: {r: 1, g: 0.92, b: 0.45, a: 1}
+  hoverBlend: 0.4
+  hoverRaycastMaxDistance: 80
+  hoverRaycastLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
   face1ShieldRestore: 1
   face2ShieldRestore: 1
   face3ShieldRestore: 1
@@ -391,7 +398,7 @@ MeshCollider:
   m_GameObject: {fileID: 3247462117665161140}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -489,7 +496,7 @@ MeshCollider:
   m_GameObject: {fileID: 4433646602695785342}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -587,7 +594,7 @@ MeshCollider:
   m_GameObject: {fileID: 5051694730748573156}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -685,7 +692,7 @@ MeshCollider:
   m_GameObject: {fileID: 5624481768136691922}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30

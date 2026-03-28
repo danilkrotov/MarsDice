@@ -144,6 +144,7 @@ MonoBehaviour:
   modules: []
   maxHealth: 10
   maxShield: 10
+  isAI: 1
 --- !u!114 &14391926
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -467,6 +468,7 @@ MonoBehaviour:
   modules: []
   maxHealth: 10
   maxShield: 10
+  isAI: 0
 --- !u!114 &1724034505
 MonoBehaviour:
   m_ObjectHideFlags: 0

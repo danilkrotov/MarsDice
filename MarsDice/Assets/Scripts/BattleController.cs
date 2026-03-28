@@ -94,7 +94,7 @@ public class BattleController : MonoBehaviour
 
                 currentPhaseName = string.IsNullOrWhiteSpace(action.PhaseName) ? "-" : action.PhaseName;
                 yield return action.Action(this, unitIndex, unit);
-                if (!unit.IsAI)
+                if (!unit.IsAI && action.UsesManualAdvanceClick)
                 {
                     yield return WaitForLeftClickAnywhere();
                 }

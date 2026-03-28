@@ -25,6 +25,13 @@ public class Dice : MonoBehaviour
     [SerializeField] private float faceOffset = 0.005f;
     [SerializeField] private float settleDuration = 0.15f;
 
+    [Header("Подсветка грани при наведении")]
+    [SerializeField] private bool enableFaceHoverHighlight = true;
+    [SerializeField] private Color hoverHighlightColor = new Color(1f, 0.92f, 0.45f, 1f);
+    [SerializeField] [Range(0f, 1f)] private float hoverBlend = 0.4f;
+    [SerializeField] private float hoverRaycastMaxDistance = 80f;
+    [SerializeField] private LayerMask hoverRaycastLayers = ~0;
+
     private readonly Vector3[] localFaceDirections =
     {
         Vector3.up,      // 1
@@ -37,6 +44,10 @@ public class Dice : MonoBehaviour
     private readonly string[] faceNames = { "1", "2", "3", "4", "5", "6" };
     private readonly GameObject[] faceVisuals = new GameObject[6];
 
+    private readonly Color[] _faceBaseColors = new Color[6];
+    private bool _faceColorsCached;
+    private int _hoveredFaceIndex;
+
     private bool isRolling;
     public bool IsRolling => isRolling;
     public int LastResult { get; private set; } = 1;
@@ -45,6 +56,22 @@ public class Dice : MonoBehaviour
     private void Start()
     {
         ApplyFaceTextures();
+    }
+
+    private void LateUpdate()
+    {
+        if (!enableFaceHoverHighlight)
+        {
+            ClearFaceHover();
+            return;
+        }
+
+        UpdateFaceHover();
+    }
+
+    private void OnDisable()
+    {
+        ClearFaceHover();
     }
 
     private void OnValidate()
@@ -65,6 +92,7 @@ public class Dice : MonoBehaviour
         }
 
         isRolling = true;
+        ClearFaceHover();
         yield return RotateForSegment();
         yield return RotateForSegment();
         yield return RotateForSegment();
@@ -164,8 +192,292 @@ public class Dice : MonoBehaviour
         transform.rotation = targetRotation;
     }
 
+    private void UpdateFaceHover()
+    {
+        if (isRolling)
+        {
+            ClearFaceHover();
+            return;
+        }
+
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            ClearFaceHover();
+            return;
+        }
+
+        if (!_faceColorsCached)
+        {
+            CacheFaceBaseColors();
+        }
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        RaycastHit[] hits = Physics.RaycastAll(ray, hoverRaycastMaxDistance, hoverRaycastLayers, QueryTriggerInteraction.Ignore);
+        int bestFace = -1;
+        float bestDist = float.MaxValue;
+        for (int h = 0; h < hits.Length; h++)
+        {
+            Transform t = hits[h].collider.transform;
+            int face = GetFaceIndexFromTransform(t);
+            if (face < 1 || face > 6)
+            {
+                continue;
+            }
+
+            if (!IsTransformUnderThisDice(t))
+            {
+                continue;
+            }
+
+            if (hits[h].distance < bestDist)
+            {
+                bestDist = hits[h].distance;
+                bestFace = face;
+            }
+        }
+
+        if (bestFace < 1)
+        {
+            ClearFaceHover();
+            return;
+        }
+
+        SetHoveredFace(bestFace);
+    }
+
+    private static int GetFaceIndexFromTransform(Transform t)
+    {
+        if (t == null || !t.name.StartsWith("Face_"))
+        {
+            return -1;
+        }
+
+        string suffix = t.name.Substring("Face_".Length);
+        if (!int.TryParse(suffix, out int idx) || idx < 1 || idx > 6)
+        {
+            return -1;
+        }
+
+        return idx;
+    }
+
+    private bool IsTransformUnderThisDice(Transform t)
+    {
+        while (t != null)
+        {
+            if (t == transform)
+            {
+                return true;
+            }
+
+            t = t.parent;
+        }
+
+        return false;
+    }
+
+    private void CacheFaceBaseColors()
+    {
+        for (int i = 0; i < 6; i++)
+        {
+            if (faceVisuals[i] == null)
+            {
+                continue;
+            }
+
+            Renderer r = faceVisuals[i].GetComponent<Renderer>();
+            if (r == null)
+            {
+                _faceBaseColors[i] = Color.white;
+                continue;
+            }
+
+            // На префабе и в OnValidate нельзя трогать .material — только sharedMaterial.
+            Material mat = Application.isPlaying ? r.material : r.sharedMaterial;
+            _faceBaseColors[i] = GetMaterialTint(mat);
+        }
+
+        _faceColorsCached = true;
+    }
+
+    private void SetHoveredFace(int faceIndex)
+    {
+        if (_hoveredFaceIndex == faceIndex)
+        {
+            return;
+        }
+
+        RestoreFaceColor(_hoveredFaceIndex);
+        _hoveredFaceIndex = faceIndex;
+        int i = faceIndex - 1;
+        if (faceVisuals[i] == null)
+        {
+            return;
+        }
+
+        Renderer r = faceVisuals[i].GetComponent<Renderer>();
+        if (r == null)
+        {
+            return;
+        }
+
+        Color baseC = _faceBaseColors[i];
+        Color tinted = Color.Lerp(baseC, hoverHighlightColor, hoverBlend);
+        Material instanceMat = r.material;
+        SetMaterialTint(instanceMat, tinted);
+    }
+
+    private void RestoreFaceColor(int faceIndex)
+    {
+        if (faceIndex < 1 || faceIndex > 6)
+        {
+            return;
+        }
+
+        int i = faceIndex - 1;
+        if (faceVisuals[i] == null)
+        {
+            return;
+        }
+
+        Renderer r = faceVisuals[i].GetComponent<Renderer>();
+        if (r == null)
+        {
+            return;
+        }
+
+        Material instanceMat = r.material;
+        SetMaterialTint(instanceMat, _faceBaseColors[i]);
+    }
+
+    private static Color GetMaterialTint(Material mat)
+    {
+        if (mat == null)
+        {
+            return Color.white;
+        }
+
+        if (mat.HasProperty("_Color"))
+        {
+            return mat.GetColor("_Color");
+        }
+
+        if (mat.HasProperty("_BaseColor"))
+        {
+            return mat.GetColor("_BaseColor");
+        }
+
+        if (mat.HasProperty("_TintColor"))
+        {
+            return mat.GetColor("_TintColor");
+        }
+
+        return Color.white;
+    }
+
+    private static void SetMaterialTint(Material mat, Color color)
+    {
+        if (mat == null)
+        {
+            return;
+        }
+
+        if (mat.HasProperty("_Color"))
+        {
+            mat.SetColor("_Color", color);
+        }
+
+        if (mat.HasProperty("_BaseColor"))
+        {
+            mat.SetColor("_BaseColor", color);
+        }
+
+        if (mat.HasProperty("_TintColor"))
+        {
+            mat.SetColor("_TintColor", color);
+        }
+    }
+
+    private static Shader ResolveFaceShader()
+    {
+        Shader s = Shader.Find("Sprites/Default");
+        if (s != null)
+        {
+            return s;
+        }
+
+        s = Shader.Find("Unlit/Color");
+        if (s != null)
+        {
+            return s;
+        }
+
+        s = Shader.Find("Universal Render Pipeline/Unlit");
+        if (s != null)
+        {
+            return s;
+        }
+
+        return Shader.Find("Unlit/Texture");
+    }
+
+    private static void ApplyTextureAndDefaultTint(Material mat, Texture2D texture)
+    {
+        if (mat == null)
+        {
+            return;
+        }
+
+        if (texture != null)
+        {
+            if (mat.HasProperty("_MainTex"))
+            {
+                mat.SetTexture("_MainTex", texture);
+            }
+            else if (mat.HasProperty("_BaseMap"))
+            {
+                mat.SetTexture("_BaseMap", texture);
+            }
+            else
+            {
+                mat.mainTexture = texture;
+            }
+        }
+
+        Color white = Color.white;
+        if (mat.HasProperty("_Color"))
+        {
+            mat.SetColor("_Color", white);
+        }
+
+        if (mat.HasProperty("_BaseColor"))
+        {
+            mat.SetColor("_BaseColor", white);
+        }
+
+        if (mat.HasProperty("_TintColor"))
+        {
+            mat.SetColor("_TintColor", white);
+        }
+    }
+
+    private void ClearFaceHover()
+    {
+        if (_hoveredFaceIndex == 0)
+        {
+            return;
+        }
+
+        RestoreFaceColor(_hoveredFaceIndex);
+        _hoveredFaceIndex = 0;
+    }
+
     private void ApplyFaceTextures()
     {
+        ClearFaceHover();
+        _faceColorsCached = false;
+
         Texture2D[] textures =
         {
             face1Texture,
@@ -190,6 +502,8 @@ public class Dice : MonoBehaviour
             EnsureFaceVisualExists(i);
             ConfigureFaceVisual(faceVisuals[i], localFaceDirections[i], centerLocal, sizeLocal, textures[i]);
         }
+
+        CacheFaceBaseColors();
     }
 
     private void EnsureFaceVisualExists(int index)
@@ -213,7 +527,7 @@ public class Dice : MonoBehaviour
         Collider col = face.GetComponent<Collider>();
         if (col != null)
         {
-            col.enabled = false;
+            col.enabled = true;
         }
 
         faceVisuals[index] = face;
@@ -238,12 +552,7 @@ public class Dice : MonoBehaviour
             return;
         }
 
-        Shader shader = Shader.Find("Unlit/Texture");
-        if (shader == null)
-        {
-            shader = Shader.Find("Standard");
-        }
-
+        Shader shader = ResolveFaceShader();
         Material mat = faceRenderer.sharedMaterial;
         if (mat == null || mat.shader != shader)
         {
@@ -251,7 +560,13 @@ public class Dice : MonoBehaviour
             faceRenderer.sharedMaterial = mat;
         }
 
-        mat.mainTexture = texture;
+        ApplyTextureAndDefaultTint(mat, texture);
+
+        Collider hoverCol = face.GetComponent<Collider>();
+        if (hoverCol != null)
+        {
+            hoverCol.enabled = true;
+        }
     }
 
     private static Vector2 GetSideSize(Vector3 dir, Vector3 size)
