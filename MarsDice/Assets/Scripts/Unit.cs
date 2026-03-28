@@ -300,12 +300,12 @@ public class Unit : MonoBehaviour
         Debug.Log($"{name}: урон {amount} (щит −{absorbedByShield}, HP −{damageToHealth}). HP: {currentHealth}/{maxHealth}, щит: {currentShield}/{MaxShield}.");
     }
 
-    private static void NotifyBattleControllerHealthChanged()
+    private void NotifyBattleControllerHealthChanged()
     {
         BattleController bc = Object.FindObjectOfType<BattleController>();
         if (bc != null)
         {
-            bc.NotifyHealthChangedAfterDamage();
+            bc.NotifyHealthChangedAfterDamage(this);
         }
     }
 

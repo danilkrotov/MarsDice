@@ -33,6 +33,11 @@ public class EnergyRegen : BattleActions
             yield break;
         }
 
+        if (AllGeneratorsFullyCharged(generators))
+        {
+            yield break;
+        }
+
         for (int gi = 0; gi < generators.Count; gi++)
         {
             generators[gi].ReplenishConsumedDice();
@@ -103,6 +108,25 @@ public class EnergyRegen : BattleActions
         }
 
         unit.ResetModuleDiceToLocalLayout();
+    }
+
+    private static bool AllGeneratorsFullyCharged(List<MGenerator> generators)
+    {
+        for (int i = 0; i < generators.Count; i++)
+        {
+            MGenerator g = generators[i];
+            if (g == null)
+            {
+                continue;
+            }
+
+            if (g.CurrentCharge < g.MaxCharge)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private IEnumerator RollAllDiceInParallel(List<Dice> diceList)

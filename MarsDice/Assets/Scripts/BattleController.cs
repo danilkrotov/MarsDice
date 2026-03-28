@@ -31,10 +31,21 @@ public class BattleController : MonoBehaviour
         GUI.Label(new Rect(20f, 20f, 520f, 40f), $"Фаза: {currentPhaseName}");
     }
 
-    /// <summary>Вызывается из <see cref="Unit.TakeDamage(int)"/> после изменения HP — обновляет анонс фазы при исходе боя.</summary>
-    public void NotifyHealthChangedAfterDamage()
+    /// <summary>Вызывается из <see cref="Unit.TakeDamage(int)"/> после изменения HP — убирает погибшего с поля, затем анонс исхода боя.</summary>
+    public void NotifyHealthChangedAfterDamage(Unit damagedUnit)
     {
-        if (!turnInProgress || battleConcluded)
+        if (!turnInProgress)
+        {
+            return;
+        }
+
+        if (damagedUnit != null && damagedUnit.CurrentHealth <= 0)
+        {
+            RemoveUnitFromTeams(damagedUnit);
+            Destroy(damagedUnit.gameObject);
+        }
+
+        if (battleConcluded)
         {
             return;
         }
@@ -89,6 +100,51 @@ public class BattleController : MonoBehaviour
         }
 
         return null;
+    }
+
+    private void RemoveUnitFromTeams(Unit unit)
+    {
+        RemoveUnitFromTeamList(firstTeam, unit);
+        RemoveUnitFromTeamList(secondTeam, unit);
+    }
+
+    private static void RemoveUnitFromTeamList(List<GameObject> team, Unit unit)
+    {
+        if (team == null || unit == null)
+        {
+            return;
+        }
+
+        Transform ut = unit.transform;
+        team.RemoveAll(go =>
+        {
+            if (go == null)
+            {
+                return false;
+            }
+
+            return go == unit.gameObject || ut.IsChildOf(go.transform);
+        });
+    }
+
+    /// <summary>Индекс корня в актуальном порядке хода (после удалений из команд в раунде).</summary>
+    private int ResolveUnitIndexInCurrentTurnOrder(GameObject unitRoot)
+    {
+        if (unitRoot == null)
+        {
+            return 0;
+        }
+
+        List<GameObject> order = GetUnitRootsInTurnOrder();
+        for (int i = 0; i < order.Count; i++)
+        {
+            if (order[i] == unitRoot)
+            {
+                return i;
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>Все корни юнитов в порядке хода: <see cref="firstTeam"/>, затем <see cref="secondTeam"/> (null пропускаются).</summary>
@@ -301,10 +357,20 @@ public class BattleController : MonoBehaviour
                 }
 
                 GameObject unitObject = turnOrder[unitIndex];
+                if (unitObject == null)
+                {
+                    continue;
+                }
+
                 Unit unit = unitObject.GetComponent<Unit>();
                 if (unit == null)
                 {
                     Debug.LogWarning($"На объекте {unitObject.name} не найден компонент Unit.");
+                    continue;
+                }
+
+                if (unit.CurrentHealth <= 0)
+                {
                     continue;
                 }
 
@@ -315,6 +381,8 @@ public class BattleController : MonoBehaviour
                 }
 
                 anyUnitProcessedThisRound = true;
+
+                int unitIndexForActions = ResolveUnitIndexInCurrentTurnOrder(unitObject);
 
                 for (int actionIndex = 0; actionIndex < battleActions.Count; actionIndex++)
                 {
@@ -330,7 +398,7 @@ public class BattleController : MonoBehaviour
                     }
 
                     currentPhaseName = string.IsNullOrWhiteSpace(action.PhaseName) ? "-" : action.PhaseName;
-                    yield return action.Action(this, unitIndex, unit);
+                    yield return action.Action(this, unitIndexForActions, unit);
                     if (battleConcluded)
                     {
                         break;
