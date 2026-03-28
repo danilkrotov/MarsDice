@@ -148,10 +148,8 @@ public class DamageDeal : BattleActions
             yield break;
         }
 
-        ReplenishTurretDiceOnUnit(unit);
-
         List<MTurret> turrets = CollectMTurrets(unit);
-        if (!UnitHasAnyTurretDice(turrets))
+        if (!UnitHasAnyTurretWithConfiguredDice(turrets))
         {
             yield break;
         }
@@ -185,6 +183,8 @@ public class DamageDeal : BattleActions
         {
             yield break;
         }
+
+        ReplenishTurretDiceOnUnit(unit);
 
         _skipPhaseRequested = false;
         _showSkipUi = !unit.IsAI;
@@ -467,6 +467,21 @@ public class DamageDeal : BattleActions
         for (int i = 0; i < list.Count; i++)
         {
             if (list[i] == dice)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Есть ли турель с настроенными слотами кубиков (шаблоны), ещё до <see cref="ReplenishTurretDiceOnUnit"/>.</summary>
+    private static bool UnitHasAnyTurretWithConfiguredDice(IReadOnlyList<MTurret> turrets)
+    {
+        for (int ti = 0; ti < turrets.Count; ti++)
+        {
+            MTurret t = turrets[ti];
+            if (t != null && t.HasConfiguredDiceForBattle())
             {
                 return true;
             }

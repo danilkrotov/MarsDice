@@ -92,17 +92,51 @@ public class Dice : MonoBehaviour
         }
 
         isRolling = true;
-        ClearFaceHover();
-        yield return RotateForSegment();
-        yield return RotateForSegment();
-        yield return RotateForSegment();
+        try
+        {
+            ClearFaceHover();
+            yield return RotateForSegment();
+            if (!IsAlive())
+            {
+                yield break;
+            }
 
-        int result = GetFaceTowardCamera();
-        yield return AlignFaceToCamera(result);
-        LastResult = result;
-        LastFailed = IsFaceFailed(result);
-        Debug.Log($"Результат броска: {result}. Failed: {LastFailed}");
-        isRolling = false;
+            yield return RotateForSegment();
+            if (!IsAlive())
+            {
+                yield break;
+            }
+
+            yield return RotateForSegment();
+            if (!IsAlive())
+            {
+                yield break;
+            }
+
+            int result = GetFaceTowardCamera();
+            yield return AlignFaceToCamera(result);
+            if (!IsAlive())
+            {
+                yield break;
+            }
+
+            LastResult = result;
+            LastFailed = IsFaceFailed(result);
+            Debug.Log($"Результат броска: {result}. Failed: {LastFailed}");
+        }
+        finally
+        {
+            if (IsAlive())
+            {
+                isRolling = false;
+            }
+        }
+    }
+
+    /// <summary>Unity «уничтоженный» объект даёт false, не бросая при проверке.</summary>
+    private bool IsAlive()
+    {
+        return this != null;
     }
 
     public bool IsFaceFailed(int face)
@@ -127,6 +161,11 @@ public class Dice : MonoBehaviour
 
         while (elapsed < segmentDuration)
         {
+            if (!IsAlive())
+            {
+                yield break;
+            }
+
             transform.Rotate(axis, speed * Time.deltaTime, Space.World);
             elapsed += Time.deltaTime;
             yield return null;
@@ -135,6 +174,11 @@ public class Dice : MonoBehaviour
 
     private int GetFaceTowardCamera()
     {
+        if (!IsAlive())
+        {
+            return 1;
+        }
+
         Camera cam = Camera.main;
         if (cam == null)
         {
@@ -162,6 +206,11 @@ public class Dice : MonoBehaviour
 
     private IEnumerator AlignFaceToCamera(int face)
     {
+        if (!IsAlive())
+        {
+            yield break;
+        }
+
         Camera cam = Camera.main;
         if (cam == null || face < 1 || face > localFaceDirections.Length)
         {
@@ -183,13 +232,21 @@ public class Dice : MonoBehaviour
 
         while (elapsed < settleDuration)
         {
+            if (!IsAlive())
+            {
+                yield break;
+            }
+
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / settleDuration);
             transform.rotation = Quaternion.Slerp(startRotation, targetRotation, t);
             yield return null;
         }
 
-        transform.rotation = targetRotation;
+        if (IsAlive())
+        {
+            transform.rotation = targetRotation;
+        }
     }
 
     private void UpdateFaceHover()
