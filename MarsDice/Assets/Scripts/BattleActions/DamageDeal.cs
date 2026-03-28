@@ -12,6 +12,12 @@ public class DamageDeal : BattleActions
 
     private bool _skipPhaseRequested;
     private bool _showSkipUi;
+    private Unit _playerPickedAttackTarget;
+
+    [Header("Подсветка цели (как наведение на грань кубика)")]
+    [SerializeField] private Color targetHoverHighlightColor = new Color(1f, 0.92f, 0.45f, 1f);
+    [SerializeField] [Range(0f, 1f)] private float targetHoverBlend = 0.4f;
+    [SerializeField] private float targetPickRaycastDistance = 120f;
 
     private void OnGUI()
     {
@@ -150,6 +156,36 @@ public class DamageDeal : BattleActions
             yield break;
         }
 
+        List<Unit> enemies = battleController.GetAliveEnemyUnitsForAttacker(unit);
+
+        Unit attackTarget;
+        if (unit.IsAI)
+        {
+            attackTarget = GetNextAliveTargetUnit(battleController, unitIndex, unit);
+        }
+        else
+        {
+            if (enemies.Count >= 2)
+            {
+                _playerPickedAttackTarget = null;
+                yield return WaitForPlayerPickAttackTarget(enemies);
+                attackTarget = _playerPickedAttackTarget;
+            }
+            else if (enemies.Count == 1)
+            {
+                attackTarget = enemies[0];
+            }
+            else
+            {
+                attackTarget = null;
+            }
+        }
+
+        if (attackTarget == null)
+        {
+            yield break;
+        }
+
         _skipPhaseRequested = false;
         _showSkipUi = !unit.IsAI;
 
@@ -178,12 +214,12 @@ public class DamageDeal : BattleActions
                         break;
                     }
 
-                    ApplyTurretDiceChoice(turretModule, autoDice, unit, unitIndex, battleController);
+                    ApplyTurretDiceChoice(turretModule, autoDice, unit, attackTarget, battleController);
                     RelayoutRemainingTurretDice(battleController, turrets);
                 }
                 else
                 {
-                    yield return WaitForPlayerAnyTurretDice(unit, battleController, turrets, unitIndex);
+                    yield return WaitForPlayerAnyTurretDice(unit, battleController, turrets, attackTarget);
                     if (_skipPhaseRequested)
                     {
                         break;
@@ -203,11 +239,39 @@ public class DamageDeal : BattleActions
         }
     }
 
+    private IEnumerator WaitForPlayerPickAttackTarget(List<Unit> candidates)
+    {
+        List<RendererTintCache> caches = BuildTargetRendererCaches(candidates);
+        try
+        {
+            while (true)
+            {
+                Unit hovered = GetHoveredCandidateUnit(candidates);
+                ApplyTargetHighlights(caches, hovered);
+
+                if (Input.GetMouseButtonDown(0))
+                {
+                    if (TryGetClickedCandidateUnit(candidates, out Unit picked) && picked != null)
+                    {
+                        _playerPickedAttackTarget = picked;
+                        yield break;
+                    }
+                }
+
+                yield return null;
+            }
+        }
+        finally
+        {
+            RestoreTargetRendererTints(caches);
+        }
+    }
+
     private IEnumerator WaitForPlayerAnyTurretDice(
         Unit unit,
         BattleController battleController,
         IReadOnlyList<MTurret> turrets,
-        int unitIndex)
+        Unit attackTarget)
     {
         while (!_skipPhaseRequested && HasAnyTurretDice(turrets))
         {
@@ -220,7 +284,7 @@ public class DamageDeal : BattleActions
                         picked != null &&
                         !picked.IsRolling)
                     {
-                        ApplyTurretDiceChoice(owner, picked, unit, unitIndex, battleController);
+                        ApplyTurretDiceChoice(owner, picked, unit, attackTarget, battleController);
                         yield break;
                     }
                 }
@@ -267,7 +331,7 @@ public class DamageDeal : BattleActions
         public int Remaining;
     }
 
-    private void ApplyTurretDiceChoice(MTurret turretModule, Dice dice, Unit unit, int unitIndex, BattleController battleController)
+    private void ApplyTurretDiceChoice(MTurret turretModule, Dice dice, Unit unit, Unit attackTarget, BattleController battleController)
     {
         int cost = turretModule.EnergyCostPerShot;
         int damage = turretModule.BaseDamagePerShot;
@@ -276,10 +340,9 @@ public class DamageDeal : BattleActions
         {
             if (TrySpendEnergyFromGenerators(unit, cost))
             {
-                Unit target = GetNextTargetUnit(unitIndex, battleController.UnitObjects);
-                if (target != null && damage > 0)
+                if (attackTarget != null && attackTarget.CurrentHealth > 0 && damage > 0)
                 {
-                    target.TakeDamage(damage);
+                    attackTarget.TakeDamage(damage);
                 }
 
                 Debug.Log($"{unit.name} / {turretModule.name}: грань {dice.LastResult}, failed={dice.LastFailed}, −{cost} энергии, урон по цели {damage}.");
@@ -459,30 +522,262 @@ public class DamageDeal : BattleActions
         return null;
     }
 
-    private static Unit GetNextTargetUnit(int attackerIndex, IReadOnlyList<GameObject> unitObjects)
+    private static Unit GetNextAliveTargetUnit(BattleController battleController, int attackerIndex, Unit attacker)
     {
-        if (unitObjects == null || unitObjects.Count < 2)
+        if (battleController == null || attacker == null)
         {
             return null;
         }
 
-        for (int offset = 1; offset < unitObjects.Count; offset++)
+        List<Unit> enemies = battleController.GetAliveEnemyUnitsForAttacker(attacker);
+        if (enemies.Count == 0)
         {
-            int targetIndex = (attackerIndex + offset) % unitObjects.Count;
-            GameObject targetObject = unitObjects[targetIndex];
-            if (targetObject == null)
+            return null;
+        }
+
+        var enemySet = new HashSet<Unit>();
+        for (int e = 0; e < enemies.Count; e++)
+        {
+            if (enemies[e] != null)
+            {
+                enemySet.Add(enemies[e]);
+            }
+        }
+
+        List<GameObject> objs = battleController.GetUnitRootsInTurnOrder();
+        if (objs != null && objs.Count > 0)
+        {
+            for (int offset = 1; offset <= objs.Count; offset++)
+            {
+                int targetIndex = (attackerIndex + offset) % objs.Count;
+                GameObject targetObject = objs[targetIndex];
+                if (targetObject == null || targetObject == attacker.gameObject)
+                {
+                    continue;
+                }
+
+                Unit targetUnit = targetObject.GetComponent<Unit>();
+                if (targetUnit != null && targetUnit.CurrentHealth > 0 && enemySet.Contains(targetUnit))
+                {
+                    return targetUnit;
+                }
+            }
+        }
+
+        return enemies[0];
+    }
+
+    private sealed class RendererTintCache
+    {
+        public Renderer Renderer;
+        public Material Material;
+        public Color BaseColor;
+    }
+
+    private List<RendererTintCache> BuildTargetRendererCaches(List<Unit> candidates)
+    {
+        var list = new List<RendererTintCache>(16);
+        for (int c = 0; c < candidates.Count; c++)
+        {
+            Unit u = candidates[c];
+            if (u == null)
             {
                 continue;
             }
 
-            Unit targetUnit = targetObject.GetComponent<Unit>();
-            if (targetUnit != null)
+            Renderer[] rends = u.GetComponentsInChildren<Renderer>(true);
+            for (int r = 0; r < rends.Length; r++)
             {
-                return targetUnit;
+                Renderer ren = rends[r];
+                if (ren == null)
+                {
+                    continue;
+                }
+
+                Material m = ren.material;
+                list.Add(new RendererTintCache
+                {
+                    Renderer = ren,
+                    Material = m,
+                    BaseColor = GetMaterialTint(m),
+                });
+            }
+        }
+
+        return list;
+    }
+
+    private void RestoreTargetRendererTints(List<RendererTintCache> caches)
+    {
+        if (caches == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < caches.Count; i++)
+        {
+            RendererTintCache e = caches[i];
+            if (e?.Material != null)
+            {
+                SetMaterialTint(e.Material, e.BaseColor);
+            }
+        }
+    }
+
+    private void ApplyTargetHighlights(List<RendererTintCache> caches, Unit hovered)
+    {
+        if (caches == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < caches.Count; i++)
+        {
+            RendererTintCache e = caches[i];
+            if (e?.Renderer == null || e.Material == null)
+            {
+                continue;
+            }
+
+            Unit owner = e.Renderer.GetComponentInParent<Unit>();
+            bool isHover = hovered != null && owner == hovered;
+            Color c = isHover
+                ? Color.Lerp(e.BaseColor, targetHoverHighlightColor, targetHoverBlend)
+                : e.BaseColor;
+            SetMaterialTint(e.Material, c);
+        }
+    }
+
+    private Unit GetHoveredCandidateUnit(List<Unit> candidates)
+    {
+        Camera cam = Camera.main;
+        if (cam == null || candidates == null || candidates.Count == 0)
+        {
+            return null;
+        }
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        if (!Physics.Raycast(ray, out RaycastHit hit, targetPickRaycastDistance, ~0, QueryTriggerInteraction.Ignore))
+        {
+            return null;
+        }
+
+        Unit u = hit.collider.GetComponentInParent<Unit>();
+        if (u == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            if (candidates[i] == u)
+            {
+                return u;
             }
         }
 
         return null;
+    }
+
+    private bool TryGetClickedCandidateUnit(List<Unit> candidates, out Unit picked)
+    {
+        picked = null;
+        Camera cam = Camera.main;
+        if (cam == null || candidates == null)
+        {
+            return false;
+        }
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        RaycastHit[] hits = Physics.RaycastAll(ray, targetPickRaycastDistance, ~0, QueryTriggerInteraction.Ignore);
+        float best = float.MaxValue;
+        Unit bestUnit = null;
+
+        for (int h = 0; h < hits.Length; h++)
+        {
+            Unit u = hits[h].collider.GetComponentInParent<Unit>();
+            if (u == null)
+            {
+                continue;
+            }
+
+            bool inList = false;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (candidates[i] == u)
+                {
+                    inList = true;
+                    break;
+                }
+            }
+
+            if (!inList)
+            {
+                continue;
+            }
+
+            if (hits[h].distance < best)
+            {
+                best = hits[h].distance;
+                bestUnit = u;
+            }
+        }
+
+        if (bestUnit == null)
+        {
+            return false;
+        }
+
+        picked = bestUnit;
+        return true;
+    }
+
+    private static Color GetMaterialTint(Material mat)
+    {
+        if (mat == null)
+        {
+            return Color.white;
+        }
+
+        if (mat.HasProperty("_Color"))
+        {
+            return mat.GetColor("_Color");
+        }
+
+        if (mat.HasProperty("_BaseColor"))
+        {
+            return mat.GetColor("_BaseColor");
+        }
+
+        if (mat.HasProperty("_TintColor"))
+        {
+            return mat.GetColor("_TintColor");
+        }
+
+        return Color.white;
+    }
+
+    private static void SetMaterialTint(Material mat, Color color)
+    {
+        if (mat == null)
+        {
+            return;
+        }
+
+        if (mat.HasProperty("_Color"))
+        {
+            mat.SetColor("_Color", color);
+        }
+
+        if (mat.HasProperty("_BaseColor"))
+        {
+            mat.SetColor("_BaseColor", color);
+        }
+
+        if (mat.HasProperty("_TintColor"))
+        {
+            mat.SetColor("_TintColor", color);
+        }
     }
 
     private static bool TrySpendEnergyFromGenerators(Unit unit, int amount)
