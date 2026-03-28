@@ -61,7 +61,6 @@ public class EnergyRegen : BattleActions
 
         yield return RollAllDiceInParallel(allDice);
 
-        var rolledDice = new List<Dice>(allDice.Count);
         for (int i = 0; i < allDice.Count; i++)
         {
             Dice dice = allDice[i];
@@ -77,31 +76,33 @@ public class EnergyRegen : BattleActions
                 generator.AddCharge(restore);
                 Debug.Log($"{unit.name} / {generator.name}: грань {dice.LastResult}, +{restore} энергии (заряд {generator.CurrentCharge}/{generator.MaxCharge}).");
             }
-
-            rolledDice.Add(dice);
         }
 
-        if (!unit.IsAI && rolledDice.Count > 0)
+        if (!unit.IsAI && allDice.Count > 0)
         {
             yield return WaitForLeftClickAnywhere();
         }
 
-        for (int i = 0; i < rolledDice.Count; i++)
+        // Уничтожаем ровно те кубики, что выводили на экран (как rolledDice, но без расхождения со списком).
+        for (int i = 0; i < allDice.Count; i++)
         {
-            Dice dice = rolledDice[i];
+            Dice dice = allDice[i];
             if (dice == null)
             {
                 continue;
             }
 
             MGenerator gen = dice.GetComponentInParent<MGenerator>();
+            GameObject root = gen != null ? gen.GetSlotRootIfContains(dice) : null;
             if (gen != null)
             {
                 gen.RemoveDice(dice);
             }
 
-            Object.Destroy(dice.gameObject);
+            Object.Destroy(root != null ? root : dice.gameObject);
         }
+
+        unit.ResetModuleDiceToLocalLayout();
     }
 
     private IEnumerator RollAllDiceInParallel(List<Dice> diceList)

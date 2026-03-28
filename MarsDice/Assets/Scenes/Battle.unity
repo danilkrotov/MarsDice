@@ -159,7 +159,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   stackOffset: {x: 0, y: 1.5, z: 0}
-  verticalBarStep: 0.22
+  verticalBarStep: 0.42
 --- !u!1 &176875597
 GameObject:
   m_ObjectHideFlags: 0
@@ -212,7 +212,7 @@ MonoBehaviour:
   - {fileID: 14391916}
   diceSpawnOffset: {x: 0, y: 1.2, z: 0}
   diceViewDistanceFromCamera: 8
-  diceHorizontalSpacing: 1.25
+  diceHorizontalSpacing: 1.65
   battleActions:
   - {fileID: 176875602}
   - {fileID: 176875603}
@@ -437,7 +437,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   stackOffset: {x: 0, y: 1.5, z: 0}
-  verticalBarStep: 0.22
+  verticalBarStep: 0.42
 --- !u!1001 &1746802208
 PrefabInstance:
   m_ObjectHideFlags: 0

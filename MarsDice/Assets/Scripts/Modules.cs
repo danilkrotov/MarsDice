@@ -169,14 +169,57 @@ public abstract class Modules : MonoBehaviour
         }
     }
 
+    /// <summary>Корень объекта в слоте (тот же, что в diceObjects), если этот Dice на нём или внутри него.</summary>
+    public GameObject GetSlotRootIfContains(Dice dice)
+    {
+        if (dice == null || diceObjects == null)
+        {
+            return null;
+        }
+
+        int idx = FindSlotIndexForDice(dice);
+        return idx >= 0 ? diceObjects[idx] : null;
+    }
+
+    private int FindSlotIndexForDice(Dice dice)
+    {
+        if (dice == null || diceObjects == null)
+        {
+            return -1;
+        }
+
+        int idx = DiceObjectIndex(dice.gameObject);
+        if (idx >= 0)
+        {
+            return idx;
+        }
+
+        Transform dtr = dice.transform;
+        for (int i = 0; i < diceObjects.Count; i++)
+        {
+            GameObject slot = diceObjects[i];
+            if (slot == null)
+            {
+                continue;
+            }
+
+            if (dtr == slot.transform || dtr.IsChildOf(slot.transform))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     public bool RemoveDice(Dice dice)
     {
-        if (dice == null)
+        if (dice == null || diceObjects == null)
         {
             return false;
         }
 
-        int idx = DiceObjectIndex(dice.gameObject);
+        int idx = FindSlotIndexForDice(dice);
         if (idx < 0)
         {
             return false;

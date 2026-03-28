@@ -94,6 +94,48 @@ public class ShieldUp : BattleActions
         }
     }
 
+    /// <summary>Удаляет все ещё висящие на модулях щита кубики после «Пропустить» (как при расходе, без начисления щита).</summary>
+    private static void DestroyRemainingShieldDiceOnModules(IReadOnlyList<MShield> shields)
+    {
+        if (shields == null)
+        {
+            return;
+        }
+
+        for (int si = 0; si < shields.Count; si++)
+        {
+            MShield sh = shields[si];
+            if (sh == null)
+            {
+                continue;
+            }
+
+            IReadOnlyList<Dice> list = sh.Dices;
+            var snapshot = new List<Dice>(list.Count);
+            for (int i = 0; i < list.Count; i++)
+            {
+                Dice d = list[i];
+                if (d != null)
+                {
+                    snapshot.Add(d);
+                }
+            }
+
+            for (int i = 0; i < snapshot.Count; i++)
+            {
+                Dice d = snapshot[i];
+                if (d == null)
+                {
+                    continue;
+                }
+
+                GameObject root = sh.GetSlotRootIfContains(d);
+                sh.RemoveDice(d);
+                Object.Destroy(root != null ? root : d.gameObject);
+            }
+        }
+    }
+
     public override IEnumerator Action(BattleController battleController, int unitIndex, Unit unit)
     {
         if (battleController == null || unit == null)
@@ -155,6 +197,10 @@ public class ShieldUp : BattleActions
         finally
         {
             _showSkipUi = false;
+            if (_skipPhaseRequested)
+            {
+                DestroyRemainingShieldDiceOnModules(shields);
+            }
         }
     }
 
@@ -314,8 +360,9 @@ public class ShieldUp : BattleActions
             }
         }
 
+        GameObject root = shieldModule.GetSlotRootIfContains(dice);
         shieldModule.RemoveDice(dice);
-        Object.Destroy(dice.gameObject);
+        Object.Destroy(root != null ? root : dice.gameObject);
     }
 
     private static bool IsDiceOnUnitShieldModule(Dice dice, Unit unit, MShield shieldModule)

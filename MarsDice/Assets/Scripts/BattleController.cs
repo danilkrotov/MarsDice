@@ -9,7 +9,7 @@ public class BattleController : MonoBehaviour
 
     [Header("Раскладка кубиков по центру экрана (как текст по центру)")]
     [SerializeField] private float diceViewDistanceFromCamera = 8f;
-    [SerializeField] private float diceHorizontalSpacing = 1.25f;
+    [SerializeField] private float diceHorizontalSpacing = 1.65f;
 
     [SerializeField] private List<BattleActions> battleActions = new List<BattleActions>();
     private string currentPhaseName = "-";

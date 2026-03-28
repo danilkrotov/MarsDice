@@ -53,8 +53,9 @@ public class DamageDeal : BattleActions
 
                 Debug.Log($"Unit {unit.gameObject.name}, кубик #{diceNumber}: выпало {dice.LastResult}, failed={dice.LastFailed}");
 
+                GameObject root = module.GetSlotRootIfContains(dice);
                 module.RemoveDice(dice);
-                Object.Destroy(dice.gameObject);
+                Object.Destroy(root != null ? root : dice.gameObject);
             }
         }
     }

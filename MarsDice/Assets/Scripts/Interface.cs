@@ -5,8 +5,8 @@ public class Interface : MonoBehaviour
     [Header("Положение стека полосок относительно этого объекта")]
     [SerializeField] private Vector3 stackOffset = new Vector3(0f, 1.5f, 0f);
 
-    [Header("Расстояние между полосками по вертикали")]
-    [SerializeField] private float verticalBarStep = 0.22f;
+    [Header("Расстояние между полосками по вертикали (центр к центру)")]
+    [SerializeField] private float verticalBarStep = 0.42f;
 
     private Unit unit;
     private UnitBarStack stack;
@@ -114,6 +114,7 @@ public class Interface : MonoBehaviour
             // Подложка дальше (+Z), яркая заливка и текст ближе (−Z), иначе чёрный трек перекрывает цвет.
             private const float BackgroundLocalZ = 0.05f;
             private const float FillLocalZ = -0.05f;
+            private const float TextBackdropLocalZ = -0.071f;
             private const float TextLocalZ = -0.08f;
 
             private readonly Transform fill;
@@ -150,9 +151,18 @@ public class Interface : MonoBehaviour
                 SetupUnlitBarRenderer(fillGo.GetComponent<Renderer>(), fillColor);
                 Object.Destroy(fillGo.GetComponent<Collider>());
 
+                float textCenterY = bgThickness * 0.5f + 0.1f;
+                GameObject textBackdrop = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                textBackdrop.name = "TextBackdrop";
+                textBackdrop.transform.SetParent(row.transform, false);
+                textBackdrop.transform.localPosition = new Vector3(0f, textCenterY, TextBackdropLocalZ);
+                textBackdrop.transform.localScale = new Vector3(barWidth * 1.04f, 0.28f, 0.02f);
+                SetupUnlitBarRenderer(textBackdrop.GetComponent<Renderer>(), Color.black);
+                Object.Destroy(textBackdrop.GetComponent<Collider>());
+
                 TextMesh textMesh = new GameObject("Text").AddComponent<TextMesh>();
                 textMesh.transform.SetParent(row.transform, false);
-                textMesh.transform.localPosition = new Vector3(0f, bgThickness * 0.5f + 0.08f, TextLocalZ);
+                textMesh.transform.localPosition = new Vector3(0f, textCenterY, TextLocalZ);
                 textMesh.characterSize = 0.08f;
                 textMesh.anchor = TextAnchor.MiddleCenter;
                 textMesh.alignment = TextAlignment.Center;
