@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class StartScript : MonoBehaviour
@@ -6,49 +7,42 @@ public class StartScript : MonoBehaviour
     [SerializeField] private Unit playerUnit;
     [SerializeField] private Unit npcUnit;
 
-    [Header("Имена дочерних объектов с MGenerator")]
-    [SerializeField] private string playerGeneratorChildName = "MGenerator";
-    [SerializeField] private string npcGeneratorChildName = "MGenerator";
+    [Header("Модули игрока (GameObject с компонентом Modules)")]
+    [SerializeField] private List<GameObject> playerModuleObjects = new List<GameObject>();
 
-    [Header("Имена дочерних объектов с MShield")]
-    [SerializeField] private string playerShieldChildName = "MShield";
-    [SerializeField] private string npcShieldChildName = "MShield";
+    [Header("Модули NPC (GameObject с компонентом Modules)")]
+    [SerializeField] private List<GameObject> npcModuleObjects = new List<GameObject>();
 
     // Awake: до любого Start() (в т.ч. BattleController), чтобы в списке модулей уже были модули.
     private void Awake()
     {
-        if (playerUnit != null)
-        {
-            MGenerator gen = CreateGeneratorOnChild(playerUnit.transform, playerGeneratorChildName);
-            playerUnit.AddModule(gen);
-
-            MShield shield = CreateShieldOnChild(playerUnit.transform, playerShieldChildName);
-            playerUnit.AddModule(shield);
-        }
-
-        if (npcUnit != null)
-        {
-            MGenerator gen = CreateGeneratorOnChild(npcUnit.transform, npcGeneratorChildName);
-            npcUnit.AddModule(gen);
-
-            MShield shield = CreateShieldOnChild(npcUnit.transform, npcShieldChildName);
-            npcUnit.AddModule(shield);
-        }
+        RegisterModules(playerUnit, playerModuleObjects);
+        RegisterModules(npcUnit, npcModuleObjects);
     }
 
-    private static MGenerator CreateGeneratorOnChild(Transform parent, string childName)
+    private static void RegisterModules(Unit unit, List<GameObject> roots)
     {
-        string name = string.IsNullOrWhiteSpace(childName) ? "MGenerator" : childName.Trim();
-        var child = new GameObject(name);
-        child.transform.SetParent(parent, false);
-        return child.AddComponent<MGenerator>();
-    }
+        if (unit == null || roots == null)
+        {
+            return;
+        }
 
-    private static MShield CreateShieldOnChild(Transform parent, string childName)
-    {
-        string name = string.IsNullOrWhiteSpace(childName) ? "MShield" : childName.Trim();
-        var child = new GameObject(name);
-        child.transform.SetParent(parent, false);
-        return child.AddComponent<MShield>();
+        for (int i = 0; i < roots.Count; i++)
+        {
+            GameObject go = roots[i];
+            if (go == null)
+            {
+                continue;
+            }
+
+            Modules module = go.GetComponent<Modules>();
+            if (module == null)
+            {
+                Debug.LogWarning($"StartScript: на «{go.name}» нет компонента Modules — пропуск.");
+                continue;
+            }
+
+            unit.AddModule(module);
+        }
     }
 }
