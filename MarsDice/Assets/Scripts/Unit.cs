@@ -17,6 +17,10 @@ public class Unit : MonoBehaviour
     [Min(0)]
     [SerializeField] private int maxShield = 10;
 
+    [Header("Управление")]
+    [Tooltip("Если включено, юнит считается под управлением ИИ: BattleController не ждёт ЛКМ между фазами.")]
+    [SerializeField] private bool isAI;
+
     public int CurrentHealth => currentHealth;
     public int MaxHealth => maxHealth;
     public int CurrentShield => currentShield;
@@ -24,6 +28,7 @@ public class Unit : MonoBehaviour
     public IReadOnlyList<Modules> Modules => modules;
     public int MinModules => minModules;
     public int MaxModules => maxModules;
+    public bool IsAI => isAI;
 
     private int currentHealth;
     private int currentShield;

@@ -94,7 +94,11 @@ public class BattleController : MonoBehaviour
 
                 currentPhaseName = string.IsNullOrWhiteSpace(action.PhaseName) ? "-" : action.PhaseName;
                 yield return action.Action(this, unitIndex, unit);
-                yield return WaitForLeftClickAnywhere();
+                if (!unit.IsAI)
+                {
+                    yield return WaitForLeftClickAnywhere();
+                }
+
                 unit.ResetModuleDiceToLocalLayout();
             }
 
