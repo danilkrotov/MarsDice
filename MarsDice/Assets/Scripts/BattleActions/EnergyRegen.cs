@@ -35,13 +35,18 @@ public class EnergyRegen : BattleActions
 
         if (AllGeneratorsFullyCharged(generators))
         {
+            Chat.Push($"Фаза {PhaseName} пропущена т.к. у вас полная электроэнергия");
             yield break;
         }
+
+        Chat.Push($"Началась фаза {PhaseName}");
 
         for (int gi = 0; gi < generators.Count; gi++)
         {
             generators[gi].ReplenishConsumedDice();
         }
+
+        int totalEnergyRestored = 0;
 
         var allDice = new List<Dice>(8);
         for (int gi = 0; gi < generators.Count; gi++)
@@ -79,8 +84,14 @@ public class EnergyRegen : BattleActions
             {
                 int restore = energyDice.GetEnergyRestoreByFace(dice.LastResult);
                 generator.AddCharge(restore);
+                totalEnergyRestored += restore;
                 Debug.Log($"{unit.name} / {generator.name}: грань {dice.LastResult}, +{restore} энергии (заряд {generator.CurrentCharge}/{generator.MaxCharge}).");
             }
+        }
+
+        if (totalEnergyRestored > 0)
+        {
+            Chat.Push($"{unit.name} восстановил {totalEnergyRestored} ед энергии.");
         }
 
         if (!unit.IsAI && allDice.Count > 0)

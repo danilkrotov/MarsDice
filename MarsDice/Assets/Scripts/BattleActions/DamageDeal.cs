@@ -166,6 +166,7 @@ public class DamageDeal : BattleActions
             if (enemies.Count >= 2)
             {
                 _playerPickedAttackTarget = null;
+                Chat.Push("Пожалуйста выбирите цель для атаки");
                 yield return WaitForPlayerPickAttackTarget(enemies);
                 attackTarget = _playerPickedAttackTarget;
             }
@@ -183,6 +184,8 @@ public class DamageDeal : BattleActions
         {
             yield break;
         }
+
+        Chat.Push($"Началась фаза {PhaseName}");
 
         ReplenishTurretDiceOnUnit(unit);
 
@@ -343,6 +346,7 @@ public class DamageDeal : BattleActions
                 if (attackTarget != null && attackTarget.CurrentHealth > 0 && damage > 0)
                 {
                     attackTarget.TakeDamage(damage);
+                    Chat.Push($"{unit.name} нанёс {attackTarget.name} {damage} ед урона");
                 }
 
                 Debug.Log($"{unit.name} / {turretModule.name}: грань {dice.LastResult}, failed={dice.LastFailed}, −{cost} энергии, урон по цели {damage}.");

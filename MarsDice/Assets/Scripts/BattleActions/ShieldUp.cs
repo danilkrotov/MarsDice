@@ -12,6 +12,7 @@ public class ShieldUp : BattleActions
 
     private bool _skipPhaseRequested;
     private bool _showSkipUi;
+    private int _totalShieldRestored;
 
     private void OnGUI()
     {
@@ -143,6 +144,12 @@ public class ShieldUp : BattleActions
             yield break;
         }
 
+        if (unit.MaxShield > 0 && unit.CurrentShield >= unit.MaxShield)
+        {
+            Chat.Push($"Фаза {PhaseName} пропущена т.к. у вас полные щиты");
+            yield break;
+        }
+
         ReplenishShieldDiceOnUnit(unit);
 
         List<MShield> shields = CollectMShields(unit);
@@ -150,6 +157,10 @@ public class ShieldUp : BattleActions
         {
             yield break;
         }
+
+        Chat.Push($"Началась фаза {PhaseName}");
+
+        _totalShieldRestored = 0;
 
         _skipPhaseRequested = false;
         _showSkipUi = !unit.IsAI;
@@ -192,6 +203,11 @@ public class ShieldUp : BattleActions
 
                     RelayoutRemainingShieldDice(battleController, shields);
                 }
+            }
+
+            if (_totalShieldRestored > 0)
+            {
+                Chat.Push($"{unit.name} восстановил {_totalShieldRestored} ед щита.");
             }
         }
         finally
@@ -350,6 +366,7 @@ public class ShieldUp : BattleActions
                 if (restore > 0)
                 {
                     unit.AddShield(restore);
+                    _totalShieldRestored += restore;
                 }
 
                 Debug.Log($"{unit.name} / {shieldModule.name}: грань {dice.LastResult}, failed={dice.LastFailed}, −{cost} энергии, +{restore} щита → {unit.CurrentShield}/{unit.MaxShield}.");
