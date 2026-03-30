@@ -540,6 +540,7 @@ GameObject:
   - component: {fileID: 3234844852970994425}
   - component: {fileID: 792788603519815219}
   - component: {fileID: 2071964418787261583}
+  - component: {fileID: 3234844852970994426}
   m_Layer: 0
   m_Name: marsohodNPC
   m_TagString: Untagged
@@ -625,6 +626,21 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1153046268581867494}
   m_Mesh: {fileID: -361115006451640119, guid: bfa916d964b27c1449cc416681794026, type: 3}
+--- !u!114 &3234844852970994426
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1153046268581867494}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab868f9854cbb1c44a3d252a7f2c57bd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  target: {fileID: 543450652627892463}
+  triggerDistance: 2.5
+  battleSceneName: Battle
 --- !u!33 &3469287838558320458
 MeshFilter:
   m_ObjectHideFlags: 0
