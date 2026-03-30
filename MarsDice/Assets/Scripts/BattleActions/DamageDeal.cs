@@ -201,7 +201,7 @@ public class DamageDeal : BattleActions
             }
 
             battleController.LayoutDiceGroupCenteredOnScreen(allDice);
-            yield return RollAllDiceInParallel(allDice);
+            yield return RollAllDiceInParallel(allDice, () => _skipPhaseRequested);
 
             if (_skipPhaseRequested)
             {
@@ -295,43 +295,6 @@ public class DamageDeal : BattleActions
 
             yield return null;
         }
-    }
-
-    private IEnumerator RollAllDiceInParallel(List<Dice> diceList)
-    {
-        var batch = new ParallelRollBatch();
-        for (int i = 0; i < diceList.Count; i++)
-        {
-            Dice dice = diceList[i];
-            if (dice == null)
-            {
-                continue;
-            }
-
-            batch.Remaining++;
-            StartCoroutine(ParallelRollOne(dice, batch));
-        }
-
-        while (batch.Remaining > 0)
-        {
-            if (_skipPhaseRequested)
-            {
-                yield break;
-            }
-
-            yield return null;
-        }
-    }
-
-    private IEnumerator ParallelRollOne(Dice dice, ParallelRollBatch batch)
-    {
-        yield return StartCoroutine(dice.RollDice());
-        batch.Remaining--;
-    }
-
-    private sealed class ParallelRollBatch
-    {
-        public int Remaining;
     }
 
     private void ApplyTurretDiceChoice(MTurret turretModule, Dice dice, Unit unit, Unit attackTarget, BattleController battleController)
@@ -799,49 +762,4 @@ public class DamageDeal : BattleActions
         }
     }
 
-    private static bool TrySpendEnergyFromGenerators(Unit unit, int amount)
-    {
-        if (amount <= 0)
-        {
-            return true;
-        }
-
-        MGenerator[] generators = unit.GetComponentsInChildren<MGenerator>(true);
-        int pool = 0;
-        for (int i = 0; i < generators.Length; i++)
-        {
-            if (generators[i] != null)
-            {
-                pool += generators[i].CurrentCharge;
-            }
-        }
-
-        if (pool < amount)
-        {
-            return false;
-        }
-
-        int remaining = amount;
-        for (int i = 0; i < generators.Length; i++)
-        {
-            if (generators[i] == null)
-            {
-                continue;
-            }
-
-            int take = Mathf.Min(generators[i].CurrentCharge, remaining);
-            if (take > 0)
-            {
-                generators[i].SubtractCharge(take);
-                remaining -= take;
-            }
-
-            if (remaining <= 0)
-            {
-                return true;
-            }
-        }
-
-        return remaining <= 0;
-    }
 }

@@ -95,7 +95,6 @@ public class ShieldUp : BattleActions
         }
     }
 
-    /// <summary>Удаляет все ещё висящие на модулях щита кубики после «Пропустить» (как при расходе, без начисления щита).</summary>
     private static void DestroyRemainingShieldDiceOnModules(IReadOnlyList<MShield> shields)
     {
         if (shields == null)
@@ -161,7 +160,6 @@ public class ShieldUp : BattleActions
         Chat.Push($"Началась фаза {PhaseName}");
 
         _totalShieldRestored = 0;
-
         _skipPhaseRequested = false;
         _showSkipUi = !unit.IsAI;
 
@@ -174,7 +172,7 @@ public class ShieldUp : BattleActions
             }
 
             battleController.LayoutDiceGroupCenteredOnScreen(allDice);
-            yield return RollAllDiceInParallel(allDice);
+            yield return RollAllDiceInParallel(allDice, () => _skipPhaseRequested);
 
             if (_skipPhaseRequested)
             {
@@ -243,43 +241,6 @@ public class ShieldUp : BattleActions
         }
     }
 
-    private IEnumerator RollAllDiceInParallel(List<Dice> diceList)
-    {
-        var batch = new ParallelRollBatch();
-        for (int i = 0; i < diceList.Count; i++)
-        {
-            Dice dice = diceList[i];
-            if (dice == null)
-            {
-                continue;
-            }
-
-            batch.Remaining++;
-            StartCoroutine(ParallelRollOne(dice, batch));
-        }
-
-        while (batch.Remaining > 0)
-        {
-            if (_skipPhaseRequested)
-            {
-                yield break;
-            }
-
-            yield return null;
-        }
-    }
-
-    private IEnumerator ParallelRollOne(Dice dice, ParallelRollBatch batch)
-    {
-        yield return StartCoroutine(dice.RollDice());
-        batch.Remaining--;
-    }
-
-    private sealed class ParallelRollBatch
-    {
-        public int Remaining;
-    }
-
     private static bool TryGetFirstShieldDice(IReadOnlyList<MShield> shields, out MShield module, out Dice dice)
     {
         for (int si = 0; si < shields.Count; si++)
@@ -330,7 +291,7 @@ public class ShieldUp : BattleActions
             for (int si = 0; si < shields.Count; si++)
             {
                 MShield sh = shields[si];
-                if (sh == null || !IsDiceOnUnitShieldModule(d, unit, sh))
+                if (sh == null || !IsDiceOnUnitShieldModule(d, sh))
                 {
                     continue;
                 }
@@ -382,7 +343,7 @@ public class ShieldUp : BattleActions
         Object.Destroy(root != null ? root : dice.gameObject);
     }
 
-    private static bool IsDiceOnUnitShieldModule(Dice dice, Unit unit, MShield shieldModule)
+    private static bool IsDiceOnUnitShieldModule(Dice dice, MShield shieldModule)
     {
         if (dice == null || shieldModule == null)
         {
@@ -462,51 +423,5 @@ public class ShieldUp : BattleActions
         }
 
         return null;
-    }
-
-    private static bool TrySpendEnergyFromGenerators(Unit unit, int amount)
-    {
-        if (amount <= 0)
-        {
-            return true;
-        }
-
-        MGenerator[] generators = unit.GetComponentsInChildren<MGenerator>(true);
-        int pool = 0;
-        for (int i = 0; i < generators.Length; i++)
-        {
-            if (generators[i] != null)
-            {
-                pool += generators[i].CurrentCharge;
-            }
-        }
-
-        if (pool < amount)
-        {
-            return false;
-        }
-
-        int remaining = amount;
-        for (int i = 0; i < generators.Length; i++)
-        {
-            if (generators[i] == null)
-            {
-                continue;
-            }
-
-            int take = Mathf.Min(generators[i].CurrentCharge, remaining);
-            if (take > 0)
-            {
-                generators[i].SubtractCharge(take);
-                remaining -= take;
-            }
-
-            if (remaining <= 0)
-            {
-                return true;
-            }
-        }
-
-        return remaining <= 0;
     }
 }

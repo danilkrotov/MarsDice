@@ -13,10 +13,7 @@ public class Chat : MonoBehaviour
 
     private void Awake()
     {
-        if (Lines.Count > MaxLines)
-        {
-            Lines.RemoveRange(0, Lines.Count - MaxLines);
-        }
+        Lines.Clear();
     }
 
     public static void Push(string message)

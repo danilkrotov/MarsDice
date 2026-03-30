@@ -23,16 +23,27 @@ public class Unit : MonoBehaviour
     public int MaxHealth => maxHealth;
     /// <summary>Накопленный щит юнита (игровая логика). Верхняя граница — <see cref="MaxShield"/> из модулей MShield.</summary>
     public int CurrentShield => currentShield;
-
-    /// <summary>Сумма <see cref="MShield.MaxShield"/> по всем модулям щита из <see cref="Modules"/>.</summary>
+    /// <summary>Сумма <see cref="MShield.MaxShield"/> по всем модулям щита.</summary>
     public int MaxShield => SumShieldMaxFromModules();
-    public IReadOnlyList<Modules> Modules => new ResolvedModulesList(moduleObjects);
+    /// <summary>Кешированный список модулей. Пересобирается при добавлении/удалении модулей.</summary>
+    public IReadOnlyList<Modules> Modules => _resolvedModules;
     public int MinModules => minModules;
     public int MaxModules => maxModules;
     public bool IsAI => isAI;
 
     private int currentHealth;
     private int currentShield;
+    private BattleController _battleController;
+    private readonly List<Modules> _resolvedModules = new List<Modules>();
+
+    /// <summary>
+    /// Регистрирует ссылку на контроллер боя, чтобы не использовать FindObjectOfType при каждом уроне.
+    /// Вызывается из <see cref="BattleController"/> в начале боя.
+    /// </summary>
+    public void RegisterBattleController(BattleController bc)
+    {
+        _battleController = bc;
+    }
 
     public void AddModule(Modules module)
     {
@@ -68,11 +79,13 @@ public class Unit : MonoBehaviour
             if (moduleObjects[i] == null)
             {
                 moduleObjects[i] = underUnit;
+                RebuildModuleCache();
                 return;
             }
         }
 
         moduleObjects.Add(underUnit);
+        RebuildModuleCache();
     }
 
     public bool RemoveModule(Modules module)
@@ -82,12 +95,39 @@ public class Unit : MonoBehaviour
             return false;
         }
 
-        return moduleObjects.Remove(module.gameObject);
+        bool removed = moduleObjects.Remove(module.gameObject);
+        if (removed)
+        {
+            RebuildModuleCache();
+        }
+
+        return removed;
     }
 
     private void Awake()
     {
         SetupAllModuleObjects();
+        RebuildModuleCache();
+    }
+
+    /// <summary>Перестраивает кеш <see cref="_resolvedModules"/> по текущему состоянию <see cref="moduleObjects"/>.</summary>
+    private void RebuildModuleCache()
+    {
+        _resolvedModules.Clear();
+        for (int i = 0; i < moduleObjects.Count; i++)
+        {
+            GameObject go = moduleObjects[i];
+            if (go == null)
+            {
+                continue;
+            }
+
+            Modules m = go.GetComponentInChildren<Modules>(true);
+            if (m != null)
+            {
+                _resolvedModules.Add(m);
+            }
+        }
     }
 
     /// <summary>Префабы клонирует под юнит; объекты сцены делает дочерними (мировые позиции сохраняются).</summary>
@@ -114,7 +154,7 @@ public class Unit : MonoBehaviour
         }
     }
 
-    /// <returns>Корень модуля под юнитом (копия префаба или тот же GO после SetParent), либе null.</returns>
+    /// <returns>Корень модуля под юнитом (копия префаба или тот же GO после SetParent), либо null.</returns>
     private GameObject EnsureModuleUnderUnit(GameObject go)
     {
         if (go == null || go == gameObject)
@@ -151,14 +191,22 @@ public class Unit : MonoBehaviour
     private void Start()
     {
         currentHealth = maxHealth;
-        // Щит на UI ведёт Unit; начальное значение берём из MShield (префаб/инспектор), а не обнуляем.
         SetShield(SumShieldCurrentFromModules());
     }
 
     /// <summary>Сумма заряда и максимумов по всем <see cref="MGenerator"/> из <see cref="Modules"/> (полоска энергии в Interface).</summary>
     public void GetDisplayedEnergy(out int current, out int max)
     {
-        SumGeneratorEnergyFromModules(Modules, out current, out max);
+        current = 0;
+        max = 0;
+        for (int i = 0; i < _resolvedModules.Count; i++)
+        {
+            if (_resolvedModules[i] is MGenerator gen)
+            {
+                current += gen.CurrentCharge;
+                max += gen.MaxCharge;
+            }
+        }
     }
 
     public void SetShield(int value)
@@ -189,9 +237,6 @@ public class Unit : MonoBehaviour
             return;
         }
 
-        // Не удаляем null-элементы: в инспекторе пустые слоты списка — это null, и их вычищение
-        // схлопывает массив и снова обнуляет размер (нельзя задать 2–3 модуля подряд).
-
         if (moduleObjects.Count > maxModules)
         {
             moduleObjects.RemoveRange(maxModules, moduleObjects.Count - maxModules);
@@ -218,7 +263,6 @@ public class Unit : MonoBehaviour
         }
     }
 
-    /// <summary>Непустые слоты списка (назначенный GameObject).</summary>
     private int GetAssignedSlotCount()
     {
         int n = 0;
@@ -233,7 +277,6 @@ public class Unit : MonoBehaviour
         return n;
     }
 
-    /// <summary>Сколько слотов дают реальный компонент Modules.</summary>
     private int GetResolvedModuleCount()
     {
         int n = 0;
@@ -294,28 +337,17 @@ public class Unit : MonoBehaviour
         if (damageToHealth > 0)
         {
             currentHealth = Mathf.Max(0, currentHealth - damageToHealth);
-            NotifyBattleControllerHealthChanged();
+            _battleController?.NotifyHealthChangedAfterDamage(this);
         }
 
         Debug.Log($"{name}: урон {amount} (щит −{absorbedByShield}, HP −{damageToHealth}). HP: {currentHealth}/{maxHealth}, щит: {currentShield}/{MaxShield}.");
     }
 
-    private void NotifyBattleControllerHealthChanged()
-    {
-        BattleController bc = Object.FindObjectOfType<BattleController>();
-        if (bc != null)
-        {
-            bc.NotifyHealthChangedAfterDamage(this);
-        }
-    }
-
     public bool HasAtLeastOneDiceInModules()
     {
-        IReadOnlyList<Modules> list = Modules;
-        for (int m = 0; m < list.Count; m++)
+        for (int m = 0; m < _resolvedModules.Count; m++)
         {
-            Modules mod = list[m];
-            if (mod != null && mod.HasConfiguredDiceForBattle())
+            if (_resolvedModules[m] != null && _resolvedModules[m].HasConfiguredDiceForBattle())
             {
                 return true;
             }
@@ -339,50 +371,12 @@ public class Unit : MonoBehaviour
         }
     }
 
-    private sealed class ResolvedModulesList : IReadOnlyList<Modules>
-    {
-        private readonly List<GameObject> _gameObjects;
-
-        public ResolvedModulesList(List<GameObject> gameObjects)
-        {
-            _gameObjects = gameObjects;
-        }
-
-        public int Count => _gameObjects?.Count ?? 0;
-
-        public Modules this[int index]
-        {
-            get
-            {
-                if (_gameObjects == null || index < 0 || index >= _gameObjects.Count)
-                {
-                    return null;
-                }
-
-                GameObject go = _gameObjects[index];
-                return go != null ? go.GetComponentInChildren<Modules>(true) : null;
-            }
-        }
-
-        public IEnumerator<Modules> GetEnumerator()
-        {
-            int n = Count;
-            for (int i = 0; i < n; i++)
-            {
-                yield return this[i];
-            }
-        }
-
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    }
-
     private int SumShieldMaxFromModules()
     {
-        IReadOnlyList<Modules> list = Modules;
         int sum = 0;
-        for (int i = 0; i < list.Count; i++)
+        for (int i = 0; i < _resolvedModules.Count; i++)
         {
-            if (list[i] is MShield sh)
+            if (_resolvedModules[i] is MShield sh)
             {
                 sum += sh.MaxShield;
             }
@@ -391,38 +385,17 @@ public class Unit : MonoBehaviour
         return sum;
     }
 
-    /// <summary>Сумма <see cref="MShield.CurrentShield"/> по модулям (стартовый щит с префаба).</summary>
     private int SumShieldCurrentFromModules()
     {
-        IReadOnlyList<Modules> list = Modules;
         int sum = 0;
-        for (int i = 0; i < list.Count; i++)
+        for (int i = 0; i < _resolvedModules.Count; i++)
         {
-            if (list[i] is MShield sh)
+            if (_resolvedModules[i] is MShield sh)
             {
                 sum += sh.CurrentShield;
             }
         }
 
         return sum;
-    }
-
-    private static void SumGeneratorEnergyFromModules(IReadOnlyList<Modules> modules, out int current, out int max)
-    {
-        current = 0;
-        max = 0;
-        if (modules == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < modules.Count; i++)
-        {
-            if (modules[i] is MGenerator gen)
-            {
-                current += gen.CurrentCharge;
-                max += gen.MaxCharge;
-            }
-        }
     }
 }

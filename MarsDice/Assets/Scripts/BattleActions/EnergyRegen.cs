@@ -68,7 +68,6 @@ public class EnergyRegen : BattleActions
         }
 
         battleController.LayoutDiceGroupCenteredOnScreen(allDice);
-
         yield return RollAllDiceInParallel(allDice);
 
         for (int i = 0; i < allDice.Count; i++)
@@ -99,7 +98,6 @@ public class EnergyRegen : BattleActions
             yield return WaitForLeftClickAnywhere();
         }
 
-        // Уничтожаем ровно те кубики, что выводили на экран (как rolledDice, но без расхождения со списком).
         for (int i = 0; i < allDice.Count; i++)
         {
             Dice dice = allDice[i];
@@ -138,45 +136,5 @@ public class EnergyRegen : BattleActions
         }
 
         return true;
-    }
-
-    private IEnumerator RollAllDiceInParallel(List<Dice> diceList)
-    {
-        var batch = new ParallelRollBatch();
-        for (int i = 0; i < diceList.Count; i++)
-        {
-            Dice dice = diceList[i];
-            if (dice == null)
-            {
-                continue;
-            }
-
-            batch.Remaining++;
-            StartCoroutine(ParallelRollOne(dice, batch));
-        }
-
-        while (batch.Remaining > 0)
-        {
-            yield return null;
-        }
-    }
-
-    private IEnumerator ParallelRollOne(Dice dice, ParallelRollBatch batch)
-    {
-        yield return StartCoroutine(dice.RollDice());
-        batch.Remaining--;
-    }
-
-    private sealed class ParallelRollBatch
-    {
-        public int Remaining;
-    }
-
-    private static IEnumerator WaitForLeftClickAnywhere()
-    {
-        while (!Input.GetMouseButtonDown(0))
-        {
-            yield return null;
-        }
     }
 }

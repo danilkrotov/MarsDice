@@ -127,18 +127,19 @@ public class BattleController : MonoBehaviour
         });
     }
 
-    /// <summary>Индекс корня в актуальном порядке хода (после удалений из команд в раунде).</summary>
-    private int ResolveUnitIndexInCurrentTurnOrder(GameObject unitRoot)
+    /// <summary>
+    /// Индекс в переданном порядке хода. Принимает уже вычисленный список, чтобы не выделять лишний список.
+    /// </summary>
+    private static int ResolveUnitIndexInTurnOrder(List<GameObject> turnOrder, GameObject unitRoot)
     {
-        if (unitRoot == null)
+        if (turnOrder == null || unitRoot == null)
         {
             return 0;
         }
 
-        List<GameObject> order = GetUnitRootsInTurnOrder();
-        for (int i = 0; i < order.Count; i++)
+        for (int i = 0; i < turnOrder.Count; i++)
         {
-            if (order[i] == unitRoot)
+            if (turnOrder[i] == unitRoot)
             {
                 return i;
             }
@@ -188,17 +189,11 @@ public class BattleController : MonoBehaviour
                 continue;
             }
 
-            Unit u = go.GetComponent<Unit>();
-            if (u == null)
-            {
-                u = go.GetComponentInChildren<Unit>(true);
-            }
-
-            considerAliveSide(u);
+            considerAliveSide(go.GetComponentInChildren<Unit>(true));
         }
     }
 
-    /// <summary>0 — первая команда, 1 — вторая, −1 если юнит ни в одном списке (в фазе урона не будет целей).</summary>
+    /// <summary>0 — первая команда, 1 — вторая, −1 если юнит ни в одном списке.</summary>
     public int GetTeamIndex(Unit unit)
     {
         if (unit == null)
@@ -219,7 +214,7 @@ public class BattleController : MonoBehaviour
         return -1;
     }
 
-    /// <summary>Живые юниты на противоположной команде. Пустой список — атакующий не в списках команд или нет живых противников.</summary>
+    /// <summary>Живые юниты на противоположной команде.</summary>
     public List<Unit> GetAliveEnemyUnitsForAttacker(Unit attacker)
     {
         if (attacker == null)
@@ -253,12 +248,7 @@ public class BattleController : MonoBehaviour
                 continue;
             }
 
-            if (go == unit.gameObject)
-            {
-                return true;
-            }
-
-            if (ut.IsChildOf(go.transform))
+            if (go == unit.gameObject || ut.IsChildOf(go.transform))
             {
                 return true;
             }
@@ -283,12 +273,7 @@ public class BattleController : MonoBehaviour
                 continue;
             }
 
-            Unit u = go.GetComponent<Unit>();
-            if (u == null)
-            {
-                u = go.GetComponentInChildren<Unit>(true);
-            }
-
+            Unit u = go.GetComponentInChildren<Unit>(true);
             if (u != null && u.CurrentHealth > 0)
             {
                 list.Add(u);
@@ -326,9 +311,40 @@ public class BattleController : MonoBehaviour
             dices);
     }
 
+    /// <summary>
+    /// Передаёт юнитам всех команд ссылку на этот контроллер, чтобы они не использовали FindObjectOfType.
+    /// </summary>
+    private void RegisterBattleControllerWithAllUnits()
+    {
+        RegisterInTeam(firstTeam);
+        RegisterInTeam(secondTeam);
+    }
+
+    private void RegisterInTeam(IReadOnlyList<GameObject> team)
+    {
+        if (team == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < team.Count; i++)
+        {
+            GameObject go = team[i];
+            if (go == null)
+            {
+                continue;
+            }
+
+            Unit u = go.GetComponentInChildren<Unit>(true);
+            if (u != null)
+            {
+                u.RegisterBattleController(this);
+            }
+        }
+    }
+
     private IEnumerator PlayTurnSequence()
     {
-        // Один кадр — все Awake/Start успевают (модули, юниты).
         yield return null;
 
         if (turnInProgress)
@@ -338,6 +354,8 @@ public class BattleController : MonoBehaviour
 
         turnInProgress = true;
         battleConcluded = false;
+
+        RegisterBattleControllerWithAllUnits();
 
         while (!battleConcluded)
         {
@@ -362,7 +380,7 @@ public class BattleController : MonoBehaviour
                     continue;
                 }
 
-                Unit unit = unitObject.GetComponent<Unit>();
+                Unit unit = unitObject.GetComponentInChildren<Unit>(true);
                 if (unit == null)
                 {
                     Debug.LogWarning($"На объекте {unitObject.name} не найден компонент Unit.");
@@ -382,7 +400,8 @@ public class BattleController : MonoBehaviour
 
                 anyUnitProcessedThisRound = true;
 
-                int unitIndexForActions = ResolveUnitIndexInCurrentTurnOrder(unitObject);
+                // Переиспользуем уже вычисленный turnOrder — не аллоцируем второй список.
+                int unitIndexForActions = ResolveUnitIndexInTurnOrder(turnOrder, unitObject);
 
                 for (int actionIndex = 0; actionIndex < battleActions.Count; actionIndex++)
                 {
@@ -437,5 +456,4 @@ public class BattleController : MonoBehaviour
             yield return null;
         }
     }
-
 }
