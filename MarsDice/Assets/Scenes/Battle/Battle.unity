@@ -174,6 +174,7 @@ GameObject:
   - component: {fileID: 176875602}
   - component: {fileID: 176875603}
   - component: {fileID: 176875601}
+  - component: {fileID: 176875604}
   m_Layer: 0
   m_Name: Scripts
   m_TagString: Scripts
@@ -232,6 +233,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76f8cd31700ec2949ab450aad88f2b36, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  targetHoverHighlightColor: {r: 1, g: 0.92, b: 0.45, a: 1}
+  targetHoverBlend: 0.4
+  targetPickRaycastDistance: 120
 --- !u!114 &176875602
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -254,6 +258,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 847222e1f5205c64983e046a402a7164, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &176875604
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 176875597}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef0b0a247530dc449bba99e86606672c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &326152224
